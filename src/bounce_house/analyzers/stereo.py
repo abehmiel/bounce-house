@@ -33,8 +33,11 @@ class StereoAnalyzer(AnalyzerBase):
         L = audio.samples[:, 0]
         R = audio.samples[:, 1]
 
-        # Phase correlation (Pearson)
-        correlation = float(np.corrcoef(L, R)[0, 1])
+        # Phase correlation (Pearson) — guard against silent/constant channels
+        if np.std(L) > 1e-10 and np.std(R) > 1e-10:
+            correlation = float(np.corrcoef(L, R)[0, 1])
+        else:
+            correlation = 1.0  # silence = identical channels = perfectly correlated
         metrics["phase_correlation"] = round(correlation, 4)
 
         # M/S decomposition
@@ -68,7 +71,7 @@ class StereoAnalyzer(AnalyzerBase):
             if np.std(bl) > 1e-10 and np.std(br) > 1e-10:
                 block_corrs.append(float(np.corrcoef(bl, br)[0, 1]))
 
-        metrics["min_block_correlation"] = round(min(block_corrs), 4) if block_corrs else 0.0
+        metrics["min_block_correlation"] = round(min(block_corrs), 4) if block_corrs else 1.0
 
         # Frequency-dependent stereo width
         freq_width = self._frequency_stereo_width(L, R, audio.sample_rate)
@@ -107,12 +110,16 @@ class StereoAnalyzer(AnalyzerBase):
             if not np.any(mask):
                 result[band_name] = 0.0
                 continue
-            l_energy = np.abs(Zl[mask, :]).flatten()
-            r_energy = np.abs(Zr[mask, :]).flatten()
-            if np.std(l_energy) > 1e-10 and np.std(r_energy) > 1e-10:
-                corr = float(np.corrcoef(l_energy, r_energy)[0, 1])
+            Zl_band = Zl[mask, :]
+            Zr_band = Zr[mask, :]
+            power_l = np.mean(np.abs(Zl_band) ** 2)
+            power_r = np.mean(np.abs(Zr_band) ** 2)
+            denom = np.sqrt(power_l * power_r)
+            if denom < 1e-10:
+                corr = 1.0  # silent band = perfectly correlated
             else:
-                corr = 1.0  # identical/silent = correlated
+                cross = np.mean(np.real(Zl_band * np.conj(Zr_band)))
+                corr = float(cross / denom)
             result[band_name] = round(corr, 4)
 
         return result
