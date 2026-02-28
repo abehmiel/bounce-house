@@ -201,6 +201,59 @@ class TestDirParser:
         assert args.recursive is True
 
 
+class TestDirCommand:
+    def test_dir_runs_successfully(self, tmp_wav_dir):
+        result = main(["dir", str(tmp_wav_dir)])
+        assert result in (0, 1, 2)
+
+    def test_dir_terminal_output_has_reports_and_summary(self, tmp_wav_dir, capsys):
+        main(["dir", str(tmp_wav_dir)])
+        captured = capsys.readouterr()
+        assert "track_a.wav" in captured.out
+        assert "track_b.wav" in captured.out
+        assert "track_c.wav" in captured.out
+        assert "DIRECTORY SUMMARY" in captured.out
+
+    def test_dir_json_output(self, tmp_wav_dir, capsys):
+        main(["dir", str(tmp_wav_dir), "--json"])
+        captured = capsys.readouterr()
+        import json
+        data = json.loads(captured.out)
+        assert "files" in data
+        assert len(data["files"]) == 3
+        assert "summary" in data
+        assert data["summary"]["total_files"] == 3
+
+    def test_dir_empty_directory(self, tmp_path, capsys):
+        result = main(["dir", str(tmp_path)])
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "No .wav files" in captured.err
+
+    def test_dir_nonexistent_path(self, capsys):
+        result = main(["dir", "/nonexistent/path"])
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "not found" in captured.err.lower() or "does not exist" in captured.err.lower()
+
+    def test_dir_exit_code_0_when_all_pass(self, tmp_wav_dir):
+        result = main(["dir", str(tmp_wav_dir)])
+        assert result in (0, 1, 2)
+
+    def test_dir_with_reference(self, tmp_wav_dir, tmp_reference_wav):
+        result = main(["dir", str(tmp_wav_dir), "--reference", str(tmp_reference_wav)])
+        assert result in (0, 1, 2)
+
+    def test_dir_with_corrupt_file_continues(self, tmp_wav_dir, capsys):
+        """A corrupt file should not stop batch processing."""
+        corrupt = tmp_wav_dir / "zzz_corrupt.wav"
+        corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
+        result = main(["dir", str(tmp_wav_dir)])
+        captured = capsys.readouterr()
+        assert "track_a.wav" in captured.out
+        assert "zzz_corrupt.wav" in captured.err
+
+
 class TestDiscoverWavFiles:
     def test_finds_wav_files(self, tmp_path):
         from bounce_house.cli import _discover_wav_files

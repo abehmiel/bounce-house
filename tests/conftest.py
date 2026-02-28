@@ -43,6 +43,21 @@ def tmp_silent_wav(tmp_path) -> Path:
 
 
 @pytest.fixture
+def tmp_wav_dir(tmp_path) -> Path:
+    """Generate a directory with 3 stereo WAV files for batch testing."""
+    sr = 44100
+    duration = 1.0
+    t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+    for i, name in enumerate(["track_a.wav", "track_b.wav", "track_c.wav"]):
+        freq = 440 * (i + 1)
+        left = 0.5 * np.sin(2 * np.pi * freq * t)
+        right = 0.3 * np.sin(2 * np.pi * freq * t + np.pi / 4)
+        stereo = np.column_stack([left, right])
+        sf.write(str(tmp_path / name), stereo, sr, subtype="PCM_16")
+    return tmp_path
+
+
+@pytest.fixture
 def tmp_reference_wav(tmp_path) -> Path:
     """Generate a 1-second stereo reference with different spectral character."""
     sr = 44100

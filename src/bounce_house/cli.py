@@ -18,7 +18,7 @@ from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.rules import evaluate_rules
 from bounce_house.diagnostics import evaluate_diagnostics
 from bounce_house.metric_docs import resolve_topic
-from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric
+from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric, format_dir_summary, format_dir_json
 
 
 _STDERR_CONSOLE = Console(stderr=True)
@@ -181,7 +181,79 @@ def _run_dir(
     use_json: bool = False,
 ) -> int:
     """Analyze all .wav files in a directory. Returns exit code."""
-    return 0  # stub
+    dir_path = Path(directory)
+    if not dir_path.is_dir():
+        print(f"Error: Directory does not exist: {directory}", file=sys.stderr)
+        return 1
+
+    wav_files = _discover_wav_files(directory, recursive)
+    if not wav_files:
+        print(f"Error: No .wav files found in {directory}", file=sys.stderr)
+        return 1
+
+    file_data: list[dict] = []
+    errors: list[tuple[str, str]] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=_STDERR_CONSOLE,
+        transient=True,
+    ) as progress:
+        file_task = progress.add_task("Analyzing files", total=len(wav_files))
+        module_task = progress.add_task("Modules", total=len(ALL_ANALYZERS), visible=False)
+
+        for wav_path in wav_files:
+            progress.update(file_task, description=f"Analyzing {wav_path.name}")
+            progress.update(module_task, completed=0, total=len(ALL_ANALYZERS), visible=True)
+
+            def on_module(name: str):
+                progress.update(module_task, description=f"  {name}")
+                progress.advance(module_task)
+
+            try:
+                data = _analyze_file(str(wav_path), reference_path, on_module=on_module)
+                file_data.append(data)
+            except (FileNotFoundError, ValueError) as e:
+                errors.append((str(wav_path.name), str(e)))
+                print(f"Error: {wav_path.name}: {e}", file=sys.stderr)
+
+            progress.update(module_task, visible=False)
+            progress.advance(file_task)
+
+    if not file_data and errors:
+        print("Error: All files failed to load.", file=sys.stderr)
+        return 1
+
+    if use_json:
+        print(format_dir_json(file_data, directory))
+    else:
+        for data in file_data:
+            print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
+        print(format_dir_summary(file_data, directory, errors))
+
+    return _dir_exit_code(file_data)
+
+
+def _dir_exit_code(file_data: list[dict]) -> int:
+    """Determine exit code from batch results. 0=pass, 1=warn, 2=fail."""
+    has_fail = False
+    has_warn = False
+    for data in file_data:
+        for result in data["results"]:
+            for a in result.assessments:
+                if a.status == "fail":
+                    has_fail = True
+                elif a.status == "warn":
+                    has_warn = True
+    if has_fail:
+        return 2
+    if has_warn:
+        return 1
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
