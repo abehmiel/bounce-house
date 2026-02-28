@@ -2,14 +2,6 @@
 
 ## Open
 
-### Multi-metric diagnostic pattern engine
-- 8 patterns: muddy, harsh, thin, over-compressed, flat, mono-incompatible, wide-bass, streaming-unfriendly
-- Data-driven pattern table in `diagnostics.py` with min_match threshold logic
-- Layers on top of existing single-metric rules (additive, not replacement)
-- New "Mix Diagnostics" section at bottom of report output
-- PLR (Peak-to-Loudness Ratio) derived metric added to loudness analyzer
-- Design: `docs/plans/2026-02-28-diagnostics-design.md`
-
 ### Genre reference profiles (future)
 - Built-in JSON profiles for common genres (hip-hop, EDM, pop, indie rock, etc.)
 - Expected ranges for LUFS, LRA, crest factor, spectral centroid, band energies, stereo width
@@ -31,6 +23,15 @@
 - Summary table across files
 
 ## Done
+
+### Multi-metric diagnostic pattern engine
+- 8 patterns: muddy, harsh, thin, over-compressed, flat, mono-incompatible, wide-bass, streaming-unfriendly
+- Data-driven pattern table in `diagnostics.py` with min_match threshold logic
+- Layers on top of existing single-metric rules (additive, not replacement)
+- New "Mix Diagnostics" section at bottom of report output
+- PLR (Peak-to-Loudness Ratio) derived metric added to loudness analyzer
+- PLR metric docs, rule (pass/warn/fail), and explain command support
+- 22 metrics documented across 4 modules (up from 21)
 
 ### Add metric documentation / help page
 - Implemented as `bounce-house explain` subcommand

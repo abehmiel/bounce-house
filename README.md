@@ -147,6 +147,11 @@ bounce-house loudness mix.wav --json
   WARN  Integrated loudness is -7.8 LUFS — outside typical -16 to -8 range
   WARN  Channel balance is +0.7 dB — slight imbalance, check panning
 
+── Mix Diagnostics ────────────────────────────────────────
+  FAIL  Over-Compressed — Over-compressed master; dynamics crushed
+        Reduce bus compressor ratio or increase threshold. Ease off the
+        limiter — aim for at least 8 dB crest factor.
+
 ════════════════════════════════════════════════════════════
   2 warning(s), 2 failure(s)
 ════════════════════════════════════════════════════════════
@@ -154,7 +159,7 @@ bounce-house loudness mix.wav --json
 
 ## Metrics
 
-Bounce House measures 21 metrics across 4 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 22 metrics across 4 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 ### Loudness & Dynamics
 
@@ -166,6 +171,7 @@ Bounce House measures 21 metrics across 4 analysis modules. Run `bounce-house ex
 | Sample Peak | Maximum digital sample value | Below -0.3 dBFS |
 | RMS Level | Average signal power | -20 to -10 dB |
 | Crest Factor | Peak-to-RMS ratio (transient headroom) | 8 to 14 dB |
+| PLR | Peak-to-Loudness Ratio — over-compression indicator | Above 10 dB |
 
 ### Spectral Balance
 
@@ -197,9 +203,28 @@ Bounce House measures 21 metrics across 4 analysis modules. Run `bounce-house ex
 | Brightness | High-frequency energy ratio | 0.1 to 0.3 |
 | Warmth | Low-mid energy ratio | 0.1 to 0.3 |
 
+## Mix Diagnostics
+
+Beyond per-metric pass/warn/fail assessments, Bounce House includes a **multi-metric diagnostic engine** that detects 8 common mixing problems by combining evidence across modules. Diagnostics appear in a dedicated section at the bottom of the report when triggered.
+
+Each pattern uses soft-AND logic: a problem fires when enough conditions match (e.g., 2 of 3), so a single borderline metric won't produce a false alarm.
+
+| Pattern | Severity | What it detects |
+|---------|----------|----------------|
+| Muddy Mix | warn | Low-mid buildup — centroid too low, warmth too high |
+| Harsh / Brittle | warn | Excessive high-mid energy — bright, fatiguing |
+| Thin / Weak | warn | Missing low-frequency body — HPFs too aggressive |
+| Over-Compressed | fail | Dynamics crushed — low crest factor, hot LUFS, low LRA |
+| Flat / Lifeless | warn | No stereo width or dynamic variation |
+| Mono Incompatible | fail | Wide stereo with phase cancellation in mono |
+| Wide Bass | warn | Stereo bass losing energy on mono playback |
+| Streaming-Unfriendly | fail | Too hot for platform normalization (-14 LUFS target) |
+
+Diagnostics layer on top of individual metric rules — they don't replace them. A mix can have clean per-metric scores but still trigger a diagnostic (e.g., "streaming-unfriendly" combines LUFS, true peak, and LRA).
+
 ## Architecture
 
-Bounce House follows a pipeline: **load → analyze → assess → format**.
+Bounce House follows a pipeline: **load → analyze → assess → diagnose → format**.
 
 ```
 wav file
@@ -218,6 +243,9 @@ analyzers/        Each analyzer extends BaseAnalyzer
 rules.py          Data-driven pass/warn/fail rules per metric
   │
   ▼
+diagnostics.py    Multi-metric pattern engine (8 mixing problems)
+  │
+  ▼
 report.py         Terminal (ANSI) or JSON formatter
   │
   ▼
@@ -227,7 +255,8 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 21 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 22 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares
 
@@ -262,6 +291,7 @@ src/bounce_house/
 ├── rules.py             Pass/warn/fail assessment rules
 ├── report.py            Terminal and JSON formatters
 ├── metric_docs.py       Metric documentation for explain command
+├── diagnostics.py       Multi-metric diagnostic pattern engine
 └── analyzers/
     ├── base.py          BaseAnalyzer, AnalysisResult, Assessment
     ├── loudness.py      EBU R128, dynamics, true peak
@@ -276,7 +306,8 @@ tests/
 ├── test_stereo.py
 ├── test_rules.py
 ├── test_report.py
-└── test_cli.py
+├── test_cli.py
+└── test_diagnostics.py
 ```
 
 ## License
