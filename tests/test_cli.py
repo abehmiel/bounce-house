@@ -1,7 +1,7 @@
 """Tests for CLI argument parsing and full dispatch."""
 
 import json
-from bounce_house.cli import create_parser, main, _analyze_file, ALL_ANALYZERS
+from bounce_house.cli import main, create_parser, _analyze_file, ALL_ANALYZERS
 
 
 class TestParser:
@@ -171,3 +171,84 @@ class TestDiagnosticsIntegration:
         """Diagnostics should not break the existing exit code behavior."""
         result = main(["analyze", str(tmp_wav)])
         assert result == 0
+
+
+class TestDirParser:
+    def test_dir_subcommand_parses(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./masters"])
+        assert args.command == "dir"
+        assert args.path == "./masters"
+
+    def test_dir_recursive_flag(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./masters", "--recursive"])
+        assert args.recursive is True
+
+    def test_dir_json_flag(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./masters", "--json"])
+        assert args.json is True
+
+    def test_dir_reference_flag(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./masters", "--reference", "ref.wav"])
+        assert args.reference == "ref.wav"
+
+    def test_dir_recursive_short_flag(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./masters", "-r"])
+        assert args.recursive is True
+
+
+class TestDiscoverWavFiles:
+    def test_finds_wav_files(self, tmp_path):
+        from bounce_house.cli import _discover_wav_files
+        import soundfile as sf
+        import numpy as np
+        sr = 44100
+        for name in ["a.wav", "b.wav"]:
+            sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        (tmp_path / "notes.txt").write_text("hello")
+        files = _discover_wav_files(str(tmp_path), recursive=False)
+        assert len(files) == 2
+        assert all(f.suffix == ".wav" for f in files)
+
+    def test_sorted_alphabetically(self, tmp_path):
+        from bounce_house.cli import _discover_wav_files
+        import soundfile as sf
+        import numpy as np
+        sr = 44100
+        for name in ["c.wav", "a.wav", "b.wav"]:
+            sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        files = _discover_wav_files(str(tmp_path), recursive=False)
+        assert [f.name for f in files] == ["a.wav", "b.wav", "c.wav"]
+
+    def test_recursive_finds_subdirs(self, tmp_path):
+        from bounce_house.cli import _discover_wav_files
+        import soundfile as sf
+        import numpy as np
+        sr = 44100
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        sf.write(str(tmp_path / "top.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        sf.write(str(sub / "nested.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        files = _discover_wav_files(str(tmp_path), recursive=True)
+        assert len(files) == 2
+
+    def test_no_recursive_skips_subdirs(self, tmp_path):
+        from bounce_house.cli import _discover_wav_files
+        import soundfile as sf
+        import numpy as np
+        sr = 44100
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        sf.write(str(tmp_path / "top.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        sf.write(str(sub / "nested.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        files = _discover_wav_files(str(tmp_path), recursive=False)
+        assert len(files) == 1
+
+    def test_empty_dir_returns_empty(self, tmp_path):
+        from bounce_house.cli import _discover_wav_files
+        files = _discover_wav_files(str(tmp_path), recursive=False)
+        assert files == []

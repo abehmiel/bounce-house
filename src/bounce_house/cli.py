@@ -71,6 +71,13 @@ def create_parser() -> argparse.ArgumentParser:
     explain_parser.add_argument("topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)")
     explain_parser.add_argument("--technical", action="store_true", help="Include measurement standards and methods")
 
+    # dir — batch analysis
+    dir_parser = subparsers.add_parser("dir", help="Analyze all .wav files in a directory")
+    dir_parser.add_argument("path", help="Directory to scan for .wav files")
+    dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
+    dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    dir_parser.add_argument("--reference", help="Path to reference .wav file")
+
     return parser
 
 
@@ -157,6 +164,26 @@ def _run_analysis(
     return 0
 
 
+def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
+    """Find .wav files in a directory, sorted alphabetically."""
+    dir_path = Path(directory)
+    if recursive:
+        files = list(dir_path.rglob("*.wav"))
+    else:
+        files = list(dir_path.glob("*.wav"))
+    return sorted(files, key=lambda p: p.name.lower())
+
+
+def _run_dir(
+    directory: str,
+    recursive: bool = False,
+    reference_path: str | None = None,
+    use_json: bool = False,
+) -> int:
+    """Analyze all .wav files in a directory. Returns exit code."""
+    return 0  # stub
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = create_parser()
     args = parser.parse_args(argv)
@@ -173,6 +200,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_analysis(args.file, args.reference, None, use_json)
     elif args.command == "explain":
         return _run_explain(args.topic, getattr(args, "technical", False))
+    elif args.command == "dir":
+        return _run_dir(args.path, getattr(args, "recursive", False), getattr(args, "reference", None), use_json)
     elif args.command in ANALYZER_MAP:
         analyzer = ANALYZER_MAP[args.command]
         return _run_analysis(args.file, None, [analyzer], use_json)
