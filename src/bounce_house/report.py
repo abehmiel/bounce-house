@@ -92,7 +92,7 @@ def format_terminal(
 
     lines.append("")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
-    stage_label = "Pre-Master Mix Analysis" if stage == "mix" else "Mix Analysis Report"
+    stage_label = "Pre-Master Mix Analysis" if stage == "mix" else "Master Analysis Report"
     lines.append(f"{_BOLD}  BOUNCE HOUSE — {stage_label}{_RESET}")
     lines.append(f"{_DIM}  {filename} ({sr} Hz, {ch_str}, {duration_str}){_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")

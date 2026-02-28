@@ -296,7 +296,7 @@ class TestStageInReport:
     def test_terminal_header_shows_master_by_default(self):
         from bounce_house.report import format_terminal
         output = format_terminal(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60})
-        assert "Mix Analysis Report" in output
+        assert "Master Analysis Report" in output
 
     def test_terminal_header_shows_mix_stage(self):
         from bounce_house.report import format_terminal
