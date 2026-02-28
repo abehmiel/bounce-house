@@ -8,3 +8,5 @@ build/
 .venv/
 .uv/
 *.wav
+docs/plans/
+**/CLAUDE.md
