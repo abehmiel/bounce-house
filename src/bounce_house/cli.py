@@ -17,6 +17,7 @@ from bounce_house.analyzers.stereo import StereoAnalyzer
 from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.rules import evaluate_rules
 from bounce_house.diagnostics import evaluate_diagnostics
+from bounce_house.profiles import get_profile
 from bounce_house.metric_docs import resolve_topic
 from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric, format_dir_summary, format_dir_json
 
@@ -41,10 +42,19 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_version()}")
 
+    # Shared parent parser for --stage flag (inherited by all subcommands)
+    stage_parent = argparse.ArgumentParser(add_help=False)
+    stage_parent.add_argument(
+        "--stage",
+        choices=["mix", "master"],
+        default="master",
+        help="Analysis stage: 'master' (default) or 'mix' (pre-master mix with adjusted thresholds)",
+    )
+
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # analyze — full report
-    analyze_parser = subparsers.add_parser("analyze", help="Run full analysis on a mix")
+    analyze_parser = subparsers.add_parser("analyze", help="Run full analysis on a mix", parents=[stage_parent])
     analyze_parser.add_argument("file", help="Path to .wav file")
     analyze_parser.add_argument("--reference", help="Path to reference .wav file")
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -56,23 +66,23 @@ def create_parser() -> argparse.ArgumentParser:
         ("stereo", "Stereo imaging and phase analysis"),
         ("perceptual", "Perceptual quality analysis"),
     ]:
-        sub = subparsers.add_parser(name, help=desc)
+        sub = subparsers.add_parser(name, help=desc, parents=[stage_parent])
         sub.add_argument("file", help="Path to .wav file")
         sub.add_argument("--json", action="store_true", help="Output as JSON")
 
     # compare
-    compare_parser = subparsers.add_parser("compare", help="Compare mix against a reference track")
+    compare_parser = subparsers.add_parser("compare", help="Compare mix against a reference track", parents=[stage_parent])
     compare_parser.add_argument("file", help="Path to .wav file")
     compare_parser.add_argument("reference", help="Path to reference .wav file")
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # explain — metric documentation
-    explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics")
+    explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics", parents=[stage_parent])
     explain_parser.add_argument("topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)")
     explain_parser.add_argument("--technical", action="store_true", help="Include measurement standards and methods")
 
     # dir — batch analysis
-    dir_parser = subparsers.add_parser("dir", help="Analyze all .wav files in a directory")
+    dir_parser = subparsers.add_parser("dir", help="Analyze all .wav files in a directory", parents=[stage_parent])
     dir_parser.add_argument("path", help="Directory to scan for .wav files")
     dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
     dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -91,6 +101,7 @@ def _analyze_file(
     reference_path: str | None = None,
     analyzers: list | None = None,
     on_module: callable | None = None,
+    profile=None,
 ) -> dict:
     """Run all computation for a file and return structured data.
 
@@ -112,10 +123,10 @@ def _analyze_file(
             result = analyzer.compare(audio, reference)
         else:
             result = analyzer.analyze(audio)
-        assessments = evaluate_rules(result)
+        assessments = evaluate_rules(result, profile)
         result.assessments = assessments
         results.append(result)
-    diagnoses = evaluate_diagnostics(results)
+    diagnoses = evaluate_diagnostics(results, profile)
     file_info = {
         "sample_rate": audio.sample_rate,
         "channels": audio.channels,
@@ -134,6 +145,7 @@ def _run_analysis(
     reference_path: str | None = None,
     analyzers: list | None = None,
     use_json: bool = False,
+    profile=None,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
     active_analyzers = analyzers if analyzers is not None else ALL_ANALYZERS
@@ -153,7 +165,7 @@ def _run_analysis(
                 progress.update(task, description=f"Analyzing {name}")
                 progress.advance(task)
 
-            data = _analyze_file(file_path, reference_path, active_analyzers, on_module=on_module)
+            data = _analyze_file(file_path, reference_path, active_analyzers, on_module=on_module, profile=profile)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -179,6 +191,7 @@ def _run_dir(
     recursive: bool = False,
     reference_path: str | None = None,
     use_json: bool = False,
+    profile=None,
 ) -> int:
     """Analyze all .wav files in a directory. Returns exit code."""
     dir_path = Path(directory)
@@ -215,7 +228,7 @@ def _run_dir(
                 progress.advance(module_task)
 
             try:
-                data = _analyze_file(str(wav_path), reference_path, on_module=on_module)
+                data = _analyze_file(str(wav_path), reference_path, on_module=on_module, profile=profile)
                 file_data.append(data)
             except (FileNotFoundError, ValueError) as e:
                 errors.append((str(wav_path.name), str(e)))
@@ -265,18 +278,19 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     use_json = getattr(args, "json", False)
+    profile = get_profile(args.stage)
 
     if args.command == "analyze":
-        return _run_analysis(args.file, args.reference, None, use_json)
+        return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
     elif args.command == "compare":
-        return _run_analysis(args.file, args.reference, None, use_json)
+        return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
     elif args.command == "explain":
         return _run_explain(args.topic, getattr(args, "technical", False))
     elif args.command == "dir":
-        return _run_dir(args.path, getattr(args, "recursive", False), getattr(args, "reference", None), use_json)
+        return _run_dir(args.path, getattr(args, "recursive", False), getattr(args, "reference", None), use_json, profile=profile)
     elif args.command in ANALYZER_MAP:
         analyzer = ANALYZER_MAP[args.command]
-        return _run_analysis(args.file, None, [analyzer], use_json)
+        return _run_analysis(args.file, None, [analyzer], use_json, profile=profile)
     else:
         parser.print_help()
         return 1

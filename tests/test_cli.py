@@ -3,6 +3,7 @@
 import json
 from bounce_house.cli import main, create_parser, _analyze_file, ALL_ANALYZERS, _dir_exit_code
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.profiles import get_profile
 
 
 class TestParser:
@@ -367,3 +368,31 @@ class TestDirIntegration:
         import json
         data = json.loads(captured.out)
         assert data["summary"]["total_files"] == 4  # 3 + 1 nested
+
+
+class TestStageFlag:
+    def test_stage_flag_parsed(self):
+        parser = create_parser()
+        args = parser.parse_args(["analyze", "mix.wav", "--stage", "mix"])
+        assert args.stage == "mix"
+
+    def test_stage_flag_default_is_master(self):
+        parser = create_parser()
+        args = parser.parse_args(["analyze", "mix.wav"])
+        assert args.stage == "master"
+
+    def test_stage_flag_on_dir_command(self):
+        parser = create_parser()
+        args = parser.parse_args(["dir", "./mixes", "--stage", "mix"])
+        assert args.stage == "mix"
+
+    def test_stage_flag_on_module_command(self):
+        parser = create_parser()
+        args = parser.parse_args(["loudness", "mix.wav", "--stage", "mix"])
+        assert args.stage == "mix"
+
+    def test_stage_invalid_value_rejected(self):
+        import pytest
+        parser = create_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["analyze", "mix.wav", "--stage", "stem"])
