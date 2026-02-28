@@ -330,6 +330,170 @@ MASTER_PROFILE = Profile(
     patterns=_MASTER_PATTERNS,
 )
 
+# --- Mix profile (pre-master) ---
+
+def _mix_lufs_status(value: float) -> str:
+    if -24 <= value <= -14:
+        return "pass"
+    if -28 <= value < -24 or -14 < value <= -12:
+        return "warn"
+    return "fail"
+
+
+def _mix_true_peak_status(value: float) -> str:
+    if value < -3.0:
+        return "pass"
+    if value <= -1.0:
+        return "warn"
+    return "fail"
+
+
+def _mix_lra_status(value: float) -> str:
+    if 6 <= value <= 20:
+        return "pass"
+    if 4 <= value < 6 or 20 < value <= 25:
+        return "warn"
+    return "fail"
+
+
+def _mix_crest_status(value: float) -> str:
+    if value > 10:
+        return "pass"
+    if value >= 4:
+        return "warn"
+    return "fail"
+
+
+def _mix_plr_status(value: float) -> str:
+    if value > 10:
+        return "pass"
+    if value >= 6:
+        return "warn"
+    return "fail"
+
+
+_MIX_RULES: dict[str, list[dict]] = {
+    "loudness": [
+        {
+            "metric": "integrated_lufs",
+            "evaluate": _mix_lufs_status,
+            "messages": {
+                "pass": "Integrated loudness is {value:.1f} LUFS — good level for a pre-master mix",
+                "warn": "Integrated loudness is {value:.1f} LUFS — outside typical -24 to -14 mix range",
+                "fail": "Integrated loudness is {value:.1f} LUFS — check gain staging before sending to mastering",
+            },
+        },
+        {
+            "metric": "true_peak_dbtp",
+            "evaluate": _mix_true_peak_status,
+            "messages": {
+                "pass": "True peak is {value:.1f} dBTP — good headroom for mastering",
+                "warn": "True peak is {value:.1f} dBTP — consider pulling mix bus down 3-6 dB for mastering headroom",
+                "fail": "True peak is {value:.1f} dBTP — insufficient headroom, pull mix bus fader down before sending to mastering",
+            },
+        },
+        {
+            "metric": "loudness_range_lu",
+            "evaluate": _mix_lra_status,
+            "messages": {
+                "pass": "Loudness range is {value:.1f} LU — healthy dynamics for a mix",
+                "warn": "Loudness range is {value:.1f} LU — dynamics may be too compressed or too wide for mastering",
+                "fail": "Loudness range is {value:.1f} LU — extreme dynamics, review compressor settings",
+            },
+        },
+        {
+            "metric": "crest_factor_db",
+            "evaluate": _mix_crest_status,
+            "messages": {
+                "pass": "Crest factor is {value:.1f} dB — good transient preservation",
+                "warn": "Crest factor is {value:.1f} dB — bus compression may be limiting dynamics available for mastering",
+                "fail": "Crest factor is {value:.1f} dB — heavily squashed for a pre-master mix, ease off bus compression",
+            },
+        },
+        {
+            "metric": "plr_db",
+            "evaluate": _mix_plr_status,
+            "messages": {
+                "pass": "Peak-to-Loudness Ratio is {value:.1f} dB — healthy headroom",
+                "warn": "PLR is {value:.1f} dB — mix may be too loud for mastering",
+                "fail": "PLR is {value:.1f} dB — remove any mix bus limiting before sending to mastering",
+            },
+        },
+    ],
+    "stereo": _MASTER_RULES["stereo"],  # identical
+}
+
+_MIX_PATTERNS: list[dict] = [
+    p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"
+]
+# Replace over_compressed with mix-adjusted version
+_MIX_PATTERNS = [
+    p for p in _MIX_PATTERNS if p["pattern"] != "over_compressed"
+] + [
+    {
+        "pattern": "over_compressed",
+        "name": "Over-Compressed Mix",
+        "conditions": [
+            ("loudness.crest_factor_db", "<", 4),
+            ("loudness.integrated_lufs", ">", -14),
+            ("loudness.loudness_range_lu", "<", 4),
+        ],
+        "min_match": 2,
+        "severity": "fail",
+        "diagnosis": "Over-compressed pre-master mix; dynamics crushed before mastering",
+        "advice": (
+            "Ease off bus compression and remove any mix bus limiter. The mastering "
+            "engineer needs dynamic range to work with. Aim for at least 6 dB crest "
+            "factor in your mix bounce."
+        ),
+    },
+]
+# Add mix-only patterns
+_MIX_PATTERNS.extend([
+    {
+        "pattern": "headroom_insufficient",
+        "name": "Insufficient Headroom",
+        "conditions": [
+            ("loudness.sample_peak_dbfs", ">", -3.0),
+            ("loudness.true_peak_dbtp", ">", -2.0),
+        ],
+        "min_match": 1,
+        "severity": "warn",
+        "diagnosis": "Mix peaks too close to 0 dBFS for mastering headroom",
+        "advice": (
+            "Pull mix bus fader down 3-6 dB to leave headroom for mastering. "
+            "Mastering engineers need room to work — peaks near 0 dBFS "
+            "limit their options."
+        ),
+    },
+    {
+        "pattern": "bus_limiter_detected",
+        "name": "Bus Limiter Detected",
+        "conditions": [
+            ("loudness.crest_factor_db", "<", 5),
+            ("loudness.sample_peak_dbfs", ">", -1.5),
+            ("loudness.integrated_lufs", ">", -12),
+        ],
+        "min_match": 3,
+        "severity": "warn",
+        "diagnosis": "Mix bus limiter detected — dynamics decisions baked in",
+        "advice": (
+            "This mix appears to have a limiter on the mix bus. Remove limiting "
+            "before sending to mastering — it bakes in dynamics decisions that "
+            "the mastering engineer should control."
+        ),
+    },
+])
+
+MIX_PROFILE = Profile(
+    name="mix",
+    display_name="Pre-Master Mix",
+    description="Pre-master mix — headroom and balance checks for mastering readiness",
+    rules=_MIX_RULES,
+    patterns=_MIX_PATTERNS,
+)
+
 _PROFILES: dict[str, Profile] = {
     "master": MASTER_PROFILE,
+    "mix": MIX_PROFILE,
 }
