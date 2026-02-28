@@ -90,3 +90,17 @@ class TestLoudnessAnalyzer:
         result = self.analyzer.compare(audio, ref)
         # Difference should be a real number
         assert isinstance(result.metrics["lufs_difference"], float)
+
+
+def test_plr_computed(tmp_wav):
+    """PLR (Peak-to-Loudness Ratio) should be true_peak - integrated_lufs."""
+    from bounce_house.audio import load_audio
+    from bounce_house.analyzers.loudness import LoudnessAnalyzer
+
+    audio = load_audio(tmp_wav)
+    analyzer = LoudnessAnalyzer()
+    result = analyzer.analyze(audio)
+
+    assert "plr_db" in result.metrics
+    expected = result.metrics["true_peak_dbtp"] - result.metrics["integrated_lufs"]
+    assert abs(result.metrics["plr_db"] - round(expected, 1)) < 0.01

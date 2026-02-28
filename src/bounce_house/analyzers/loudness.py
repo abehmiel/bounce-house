@@ -75,6 +75,12 @@ class LoudnessAnalyzer(AnalyzerBase):
             crest_db = float(sample_peak_db) - float(rms_db)
             metrics["crest_factor_db"] = round(float(crest_db), 1)
 
+        # PLR (Peak-to-Loudness Ratio): over-compression indicator
+        if metrics.get("true_peak_dbtp") is not None:
+            metrics["plr_db"] = round(
+                float(metrics["true_peak_dbtp"]) - float(metrics["integrated_lufs"]), 1
+            )
+
         return AnalysisResult(module=self.name, metrics=metrics)
 
     def compare(self, audio: AudioData, reference: AudioData) -> AnalysisResult:
