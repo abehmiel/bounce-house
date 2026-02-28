@@ -275,14 +275,16 @@ class TestEdgeCases:
         assert isinstance(diagnoses, list)
 
     def test_all_patterns_have_required_fields(self):
-        """Verify every pattern in _PATTERNS has the required keys."""
-        from bounce_house.diagnostics import _PATTERNS
-        required = {"pattern", "name", "conditions", "min_match", "severity", "diagnosis", "advice"}
-        for p in _PATTERNS:
-            assert required.issubset(p.keys()), f"Pattern {p.get('pattern')} missing keys: {required - p.keys()}"
-            assert p["severity"] in ("warn", "fail")
-            assert p["min_match"] >= 1
-            assert p["min_match"] <= len(p["conditions"])
+        """Verify every pattern in profiles has the required keys."""
+        from bounce_house.profiles import get_profile
+        for stage in ("master", "mix"):
+            profile = get_profile(stage)
+            required = {"pattern", "name", "conditions", "min_match", "severity", "diagnosis", "advice"}
+            for p in profile.patterns:
+                assert required.issubset(p.keys()), f"Pattern {p.get('pattern')} in {stage} missing keys"
+                assert p["severity"] in ("warn", "fail")
+                assert p["min_match"] >= 1
+                assert p["min_match"] <= len(p["conditions"])
 
 
 from bounce_house.profiles import get_profile
