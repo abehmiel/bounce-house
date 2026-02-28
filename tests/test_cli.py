@@ -1,7 +1,8 @@
 """Tests for CLI argument parsing and full dispatch."""
 
 import json
-from bounce_house.cli import main, create_parser, _analyze_file, ALL_ANALYZERS
+from bounce_house.cli import main, create_parser, _analyze_file, ALL_ANALYZERS, _dir_exit_code
+from bounce_house.analyzers.base import AnalysisResult, Assessment
 
 
 class TestParser:
@@ -305,3 +306,64 @@ class TestDiscoverWavFiles:
         from bounce_house.cli import _discover_wav_files
         files = _discover_wav_files(str(tmp_path), recursive=False)
         assert files == []
+
+
+class TestDirExitCode:
+    def test_all_pass_returns_0(self):
+        data = [{"results": [AnalysisResult(module="loudness", assessments=[
+            Assessment("lufs", -14.0, "pass", "ok"),
+        ])]}]
+        assert _dir_exit_code(data) == 0
+
+    def test_warn_returns_1(self):
+        data = [{"results": [AnalysisResult(module="loudness", assessments=[
+            Assessment("peak", -0.1, "warn", "hot"),
+        ])]}]
+        assert _dir_exit_code(data) == 1
+
+    def test_fail_returns_2(self):
+        data = [{"results": [AnalysisResult(module="loudness", assessments=[
+            Assessment("lufs", -5.0, "fail", "too loud"),
+        ])]}]
+        assert _dir_exit_code(data) == 2
+
+    def test_fail_trumps_warn(self):
+        data = [{"results": [AnalysisResult(module="loudness", assessments=[
+            Assessment("peak", -0.1, "warn", "hot"),
+            Assessment("lufs", -5.0, "fail", "too loud"),
+        ])]}]
+        assert _dir_exit_code(data) == 2
+
+    def test_empty_data_returns_0(self):
+        assert _dir_exit_code([]) == 0
+
+
+class TestDirIntegration:
+    def test_dir_recursive(self, tmp_wav_dir):
+        """Test recursive discovery with subdirectories."""
+        import soundfile as sf
+        import numpy as np
+        sub = tmp_wav_dir / "subdir"
+        sub.mkdir()
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        stereo = np.column_stack([0.5 * np.sin(2 * np.pi * 440 * t)] * 2)
+        sf.write(str(sub / "nested.wav"), stereo, sr, subtype="PCM_16")
+        result = main(["dir", str(tmp_wav_dir), "--recursive"])
+        assert result in (0, 1, 2)
+
+    def test_dir_recursive_json(self, tmp_wav_dir, capsys):
+        """Recursive JSON output includes files from subdirectories."""
+        import soundfile as sf
+        import numpy as np
+        sub = tmp_wav_dir / "subdir"
+        sub.mkdir()
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        stereo = np.column_stack([0.5 * np.sin(2 * np.pi * 440 * t)] * 2)
+        sf.write(str(sub / "nested.wav"), stereo, sr, subtype="PCM_16")
+        main(["dir", str(tmp_wav_dir), "--recursive", "--json"])
+        captured = capsys.readouterr()
+        import json
+        data = json.loads(captured.out)
+        assert data["summary"]["total_files"] == 4  # 3 + 1 nested
