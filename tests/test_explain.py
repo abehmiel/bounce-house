@@ -157,3 +157,61 @@ class TestFormatExplainMetric:
     def test_no_technical_by_default(self):
         output = format_explain_metric("integrated_lufs", technical=False)
         assert "Standard:" not in output
+
+
+from bounce_house.cli import create_parser, main
+
+
+class TestExplainCLI:
+    def test_explain_parser_no_args(self):
+        parser = create_parser()
+        args = parser.parse_args(["explain"])
+        assert args.command == "explain"
+        assert args.topic is None
+        assert args.technical is False
+
+    def test_explain_parser_with_topic(self):
+        parser = create_parser()
+        args = parser.parse_args(["explain", "loudness"])
+        assert args.topic == "loudness"
+
+    def test_explain_parser_with_technical(self):
+        parser = create_parser()
+        args = parser.parse_args(["explain", "lufs", "--technical"])
+        assert args.technical is True
+
+    def test_explain_no_topic_returns_0(self, capsys):
+        result = main(["explain"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "Metric Reference" in output
+
+    def test_explain_module_returns_0(self, capsys):
+        result = main(["explain", "loudness"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "Integrated LUFS" in output
+        assert "Good range" in output
+
+    def test_explain_metric_returns_0(self, capsys):
+        result = main(["explain", "lufs"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "Integrated LUFS" in output
+
+    def test_explain_invalid_topic_returns_1(self, capsys):
+        result = main(["explain", "xyzzy"])
+        assert result == 1
+        output = capsys.readouterr().err
+        assert "not found" in output.lower() or "Unknown" in output
+
+    def test_explain_technical_flag(self, capsys):
+        main(["explain", "lufs", "--technical"])
+        output = capsys.readouterr().out
+        assert "Standard" in output or "Method" in output
+
+    def test_explain_fuzzy_match(self, capsys):
+        result = main(["explain", "centroid"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "Spectral Centroid" in output

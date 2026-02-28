@@ -13,7 +13,8 @@ from bounce_house.analyzers.spectrum import SpectrumAnalyzer
 from bounce_house.analyzers.stereo import StereoAnalyzer
 from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.rules import evaluate_rules
-from bounce_house.report import format_terminal, format_json
+from bounce_house.metric_docs import resolve_topic
+from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric
 
 
 ALL_ANALYZERS = [
@@ -56,6 +57,11 @@ def create_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("file", help="Path to .wav file")
     compare_parser.add_argument("reference", help="Path to reference .wav file")
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # explain — metric documentation
+    explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics")
+    explain_parser.add_argument("topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)")
+    explain_parser.add_argument("--technical", action="store_true", help="Include measurement standards and methods")
 
     return parser
 
@@ -130,11 +136,36 @@ def main(argv: list[str] | None = None) -> int:
         return _run_analysis(args.file, args.reference, None, use_json)
     elif args.command == "compare":
         return _run_analysis(args.file, args.reference, None, use_json)
+    elif args.command == "explain":
+        return _run_explain(args.topic, getattr(args, "technical", False))
     elif args.command in ANALYZER_MAP:
         analyzer = ANALYZER_MAP[args.command]
         return _run_analysis(args.file, None, [analyzer], use_json)
     else:
         parser.print_help()
+        return 1
+
+
+def _run_explain(topic: str | None, technical: bool) -> int:
+    """Print metric documentation. Returns exit code."""
+    if topic is None:
+        print(format_explain_overview())
+        return 0
+
+    kind, result = resolve_topic(topic)
+
+    if kind == "module":
+        print(format_explain_module(result, technical=technical))
+        return 0
+    elif kind == "metric":
+        print(format_explain_metric(result, technical=technical))
+        return 0
+    else:
+        suggestions = result
+        msg = f"Unknown topic '{topic}'."
+        if suggestions:
+            msg += f" Did you mean: {', '.join(suggestions)}?"
+        print(msg, file=sys.stderr)
         return 1
 
 
