@@ -1,0 +1,31 @@
+[project]
+name = "bounce-house"
+version = "0.1.0"
+description = "CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, and actionable advice"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "soundfile>=0.12",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pyloudnorm>=0.1",
+    "librosa>=0.10",
+]
+
+[project.optional-dependencies]
+perceptual = ["timbral_models"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[project.scripts]
+bounce-house = "bounce_house.cli:main"
+bh = "bounce_house.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bounce_house"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

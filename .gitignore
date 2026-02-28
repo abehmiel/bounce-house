@@ -1,1 +1,10 @@
 .worktrees/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+.uv/
+*.wav
