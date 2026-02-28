@@ -20,6 +20,14 @@
 
 ## Done
 
+### Mix vs. master stage profiles
+- `--stage mix|master` flag on `analyze`, `dir`, and single-module subcommands
+- Mix stage: LUFS targets -24 to -14, peak threshold -3 dBFS, lenient crest factor
+- Master stage (default): existing thresholds unchanged (-16 to -8 LUFS, -1 dBTP peak)
+- Streaming-readiness diagnostic disabled in mix mode
+- Headroom and bus limiter diagnostics added for mix mode
+- Stage-aware rules via `StageProfile` dataclass in `rules.py`
+
 ### Batch analysis / CI integration
 - `dir` subcommand: `bounce-house dir ./masters/` analyzes all WAV files in a directory
 - `--recursive` flag to include subdirectories, `--json` for machine-readable output, `--reference` for comparison

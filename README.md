@@ -113,6 +113,23 @@ Each file gets a full report, followed by a summary table:
 
 Exit codes for CI/CD gating: `0` = all pass, `1` = warnings, `2` = failures. Corrupt files are logged to stderr without stopping the batch.
 
+### Mix vs. Master Mode
+
+By default, bounce-house analyzes audio as a finished master. For pre-master
+mixes, use `--stage mix` to get thresholds calibrated for mixing:
+
+```bash
+bounce-house analyze my_mix.wav --stage mix
+bounce-house dir ./mixes --stage mix
+```
+
+Mix mode adjusts:
+- LUFS targets (-24 to -14 instead of -16 to -8)
+- Peak thresholds (warns at -3 dBFS instead of -1 dBTP)
+- Crest factor tolerance (more lenient for unmixed dynamics)
+- Disables streaming-readiness checks
+- Adds headroom and bus limiter diagnostics
+
 ### JSON output
 
 All analysis commands support `--json` for machine-readable output:
