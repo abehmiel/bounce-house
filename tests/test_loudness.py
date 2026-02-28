@@ -55,6 +55,28 @@ class TestLoudnessAnalyzer:
         # Should not crash on silence, LUFS should be very negative
         assert result.metrics["integrated_lufs"] < -60
 
+    def test_silent_file_crest_factor_is_none(self, tmp_silent_wav):
+        """Crest factor is undefined for silence — must be None, not 0.0."""
+        audio = load_audio(tmp_silent_wav)
+        result = self.analyzer.analyze(audio)
+        assert result.metrics["crest_factor_db"] is None
+
+    def test_true_peak_missing_key_returns_none(self, tmp_wav, monkeypatch):
+        """If ffmpeg JSON lacks input_tp, _measure_true_peak returns None."""
+        import json as json_mod
+        import subprocess
+
+        fake_json = json_mod.dumps({"input_i": "-14.0", "input_lra": "6.0"})
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=f"header\n{fake_json}\n"
+        )
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+        monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/ffmpeg")
+
+        audio = load_audio(tmp_wav)
+        result = self.analyzer._measure_true_peak(audio)
+        assert result is None
+
     def test_compare_returns_result(self, tmp_wav, tmp_reference_wav):
         audio = load_audio(tmp_wav)
         ref = load_audio(tmp_reference_wav)

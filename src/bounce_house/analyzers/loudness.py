@@ -68,9 +68,12 @@ class LoudnessAnalyzer(AnalyzerBase):
         rms_db = 20.0 * np.log10(rms_linear + 1e-10)
         metrics["rms_db"] = round(float(rms_db), 1)
 
-        # Crest factor: peak level minus RMS level (in dB)
-        crest_db = float(sample_peak_db) - float(rms_db)
-        metrics["crest_factor_db"] = round(float(crest_db), 1)
+        # Crest factor: undefined for silence
+        if peak_linear < 1e-8:
+            metrics["crest_factor_db"] = None
+        else:
+            crest_db = float(sample_peak_db) - float(rms_db)
+            metrics["crest_factor_db"] = round(float(crest_db), 1)
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
@@ -126,7 +129,10 @@ class LoudnessAnalyzer(AnalyzerBase):
             json_end = stderr.rfind("}") + 1
             if json_start >= 0 and json_end > json_start:
                 data = json.loads(stderr[json_start:json_end])
-                tp = float(data.get("input_tp", 0))
+                raw_tp = data.get("input_tp")
+                if raw_tp is None:
+                    return None
+                tp = float(raw_tp)
                 return round(tp, 1)
         except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError, OSError):
             pass
