@@ -283,3 +283,70 @@ class TestEdgeCases:
             assert p["severity"] in ("warn", "fail")
             assert p["min_match"] >= 1
             assert p["min_match"] <= len(p["conditions"])
+
+
+from bounce_house.profiles import get_profile
+
+
+class TestDiagnosticsWithProfile:
+    def _make_results(self, **overrides):
+        return TestEvaluateDiagnostics._make_results(
+            TestEvaluateDiagnostics(), **overrides
+        )
+
+    def test_evaluate_diagnostics_accepts_profile(self):
+        profile = get_profile("master")
+        results = self._make_results()
+        diagnoses = evaluate_diagnostics(results, profile)
+        assert diagnoses == []
+
+    def test_mix_profile_skips_streaming_unfriendly(self):
+        """streaming_unfriendly should not fire in mix mode even with matching metrics."""
+        results = self._make_results(**{
+            "loudness.integrated_lufs": -5.0,
+            "loudness.true_peak_dbtp": -0.3,
+            "loudness.loudness_range_lu": 3.0,
+        })
+        mix_diagnoses = evaluate_diagnostics(results, get_profile("mix"))
+        master_diagnoses = evaluate_diagnostics(results, get_profile("master"))
+
+        mix_patterns = [d.pattern for d in mix_diagnoses]
+        master_patterns = [d.pattern for d in master_diagnoses]
+
+        assert "streaming_unfriendly" not in mix_patterns
+        assert "streaming_unfriendly" in master_patterns
+
+    def test_mix_headroom_insufficient_fires(self):
+        """headroom_insufficient should fire in mix mode when peaks are hot."""
+        results = self._make_results(**{
+            "loudness.sample_peak_dbfs": -1.5,
+        })
+        diagnoses = evaluate_diagnostics(results, get_profile("mix"))
+        patterns = [d.pattern for d in diagnoses]
+        assert "headroom_insufficient" in patterns
+
+    def test_mix_bus_limiter_detected_fires(self):
+        """bus_limiter_detected fires when all 3 conditions match."""
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 3.0,
+            "loudness.sample_peak_dbfs": -0.5,
+            "loudness.integrated_lufs": -10.0,
+        })
+        diagnoses = evaluate_diagnostics(results, get_profile("mix"))
+        patterns = [d.pattern for d in diagnoses]
+        assert "bus_limiter_detected" in patterns
+
+    def test_master_no_headroom_check(self):
+        """headroom_insufficient should not exist in master mode."""
+        results = self._make_results(**{
+            "loudness.sample_peak_dbfs": -1.5,
+        })
+        diagnoses = evaluate_diagnostics(results, get_profile("master"))
+        patterns = [d.pattern for d in diagnoses]
+        assert "headroom_insufficient" not in patterns
+
+    def test_backward_compat_no_profile(self):
+        """evaluate_diagnostics still works without a profile."""
+        results = self._make_results()
+        diagnoses = evaluate_diagnostics(results)
+        assert isinstance(diagnoses, list)

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult
+from bounce_house.profiles import Profile, get_profile
 
 
 @dataclass
@@ -87,15 +88,21 @@ def _check_conditions(
     return matched
 
 
-def evaluate_diagnostics(results: list[AnalysisResult]) -> list[Diagnosis]:
+def evaluate_diagnostics(
+    results: list[AnalysisResult],
+    profile: Profile | None = None,
+) -> list[Diagnosis]:
     """Evaluate all diagnostic patterns against analysis results.
 
     Returns a list of Diagnosis objects for every pattern whose matched
     condition count meets or exceeds its min_match threshold.
     """
+    if profile is None:
+        profile = get_profile("master")
+
     diagnoses: list[Diagnosis] = []
 
-    for pattern in _PATTERNS:
+    for pattern in profile.patterns:
         conditions = pattern["conditions"]
         matched = _check_conditions(results, conditions)
         if matched >= pattern["min_match"]:
