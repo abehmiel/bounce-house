@@ -47,6 +47,28 @@ class TestTerminalFormat:
         assert "warning" in output.lower() or "failure" in output.lower() or "0" in output
 
 
+def test_unknown_metric_is_auto_formatted():
+    """A metric not in _METRIC_NAMES should auto-format, not vanish."""
+    result = AnalysisResult(
+        module="loudness",
+        metrics={"integrated_lufs": -12.0, "my_new_metric_db": -3.5},
+        assessments=[],
+    )
+    output = format_terminal([result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0})
+    assert "My New Metric Db" in output
+
+
+def test_none_value_not_displayed_as_string():
+    """A metric with value None must not display as 'None'."""
+    result = AnalysisResult(
+        module="loudness",
+        metrics={"integrated_lufs": -12.0, "crest_factor_db": None},
+        assessments=[],
+    )
+    output = format_terminal([result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0})
+    assert "None" not in output
+
+
 class TestJsonFormat:
     def test_returns_valid_json(self):
         output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})

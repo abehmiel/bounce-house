@@ -27,11 +27,18 @@ _MODULE_TITLES = {
     "perceptual": "Perceptual Quality",
 }
 
+# Metrics to hide from terminal display entirely
+_SKIP_METRICS: frozenset[str] = frozenset({
+    "true_peak_available",
+    "timbral_models_available",
+    "proxy_metrics",
+    "mono_file",
+})
+
 # Display-friendly metric names
 _METRIC_NAMES = {
     "integrated_lufs": "Integrated LUFS",
     "true_peak_dbtp": "True Peak",
-    "true_peak_available": None,  # skip display
     "loudness_range_lu": "Loudness Range",
     "sample_peak_dbfs": "Sample Peak",
     "rms_db": "RMS Level",
@@ -51,9 +58,6 @@ _METRIC_NAMES = {
     "warmth": "Warmth",
     "hardness": "Hardness",
     "roughness": "Roughness",
-    "timbral_models_available": None,
-    "proxy_metrics": None,
-    "mono_file": None,
 }
 
 
@@ -109,14 +113,17 @@ def format_terminal(
         freq_width = result.metrics.get("frequency_width")
 
         for key, value in result.metrics.items():
-            display_name = _METRIC_NAMES.get(key)
-            if display_name is None:
+            if key in _SKIP_METRICS:
                 continue
             if key in ("bands", "band_differences", "reference_bands", "frequency_width"):
                 continue
             # Skip reference/diff keys in main display
             if key.startswith("reference_") or key.endswith("_difference"):
                 continue
+            if value is None:
+                continue
+
+            display_name = _METRIC_NAMES.get(key, key.replace("_", " ").title())
 
             assessment = assessment_map.get(key)
             status_str = ""
