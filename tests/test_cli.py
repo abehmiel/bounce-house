@@ -1,7 +1,7 @@
 """Tests for CLI argument parsing and full dispatch."""
 
 import json
-from bounce_house.cli import create_parser, main
+from bounce_house.cli import create_parser, main, _analyze_file, ALL_ANALYZERS
 
 
 class TestParser:
@@ -109,6 +109,30 @@ class TestFullAnalysis:
     def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
         result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
         assert result == 0
+
+
+class TestAnalyzeFile:
+    def test_returns_structured_data(self, tmp_wav):
+        data = _analyze_file(str(tmp_wav))
+        assert "results" in data
+        assert "file_info" in data
+        assert "diagnoses" in data
+        assert "path" in data
+        assert len(data["results"]) == len(ALL_ANALYZERS)
+
+    def test_with_reference(self, tmp_wav, tmp_reference_wav):
+        data = _analyze_file(str(tmp_wav), reference_path=str(tmp_reference_wav))
+        assert len(data["results"]) == len(ALL_ANALYZERS)
+
+    def test_file_info_has_expected_keys(self, tmp_wav):
+        data = _analyze_file(str(tmp_wav))
+        assert "sample_rate" in data["file_info"]
+        assert "channels" in data["file_info"]
+        assert "duration" in data["file_info"]
+
+    def test_subset_analyzers(self, tmp_wav):
+        data = _analyze_file(str(tmp_wav), analyzers=[ALL_ANALYZERS[0]])
+        assert len(data["results"]) == 1
 
 
 class TestDiagnosticsIntegration:

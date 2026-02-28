@@ -73,6 +73,46 @@ def _get_version() -> str:
     return __version__
 
 
+def _analyze_file(
+    file_path: str,
+    reference_path: str | None = None,
+    analyzers: list | None = None,
+) -> dict:
+    """Run all computation for a file and return structured data.
+
+    Returns a dict with keys: path, results, file_info, diagnoses.
+    Raises FileNotFoundError or ValueError on bad input.
+    """
+    path = Path(file_path)
+    audio = load_audio(path)
+    reference = None
+    if reference_path:
+        reference = load_audio(Path(reference_path))
+    if analyzers is None:
+        analyzers = ALL_ANALYZERS
+    results: list[AnalysisResult] = []
+    for analyzer in analyzers:
+        if reference:
+            result = analyzer.compare(audio, reference)
+        else:
+            result = analyzer.analyze(audio)
+        assessments = evaluate_rules(result)
+        result.assessments = assessments
+        results.append(result)
+    diagnoses = evaluate_diagnostics(results)
+    file_info = {
+        "sample_rate": audio.sample_rate,
+        "channels": audio.channels,
+        "duration": round(audio.duration, 1),
+    }
+    return {
+        "path": str(path),
+        "results": results,
+        "file_info": file_info,
+        "diagnoses": diagnoses,
+    }
+
+
 def _run_analysis(
     file_path: str,
     reference_path: str | None = None,
@@ -80,50 +120,15 @@ def _run_analysis(
     use_json: bool = False,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
-    path = Path(file_path)
     try:
-        audio = load_audio(path)
+        data = _analyze_file(file_path, reference_path, analyzers)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
-
-    reference = None
-    if reference_path:
-        try:
-            reference = load_audio(Path(reference_path))
-        except (FileNotFoundError, ValueError) as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 1
-
-    if analyzers is None:
-        analyzers = ALL_ANALYZERS
-
-    results: list[AnalysisResult] = []
-    for analyzer in analyzers:
-        if reference:
-            result = analyzer.compare(audio, reference)
-        else:
-            result = analyzer.analyze(audio)
-
-        # Apply rules
-        assessments = evaluate_rules(result)
-        result.assessments = assessments
-        results.append(result)
-
-    # Evaluate multi-metric diagnostic patterns
-    diagnoses = evaluate_diagnostics(results)
-
-    file_info = {
-        "sample_rate": audio.sample_rate,
-        "channels": audio.channels,
-        "duration": round(audio.duration, 1),
-    }
-
     if use_json:
-        print(format_json(results, str(path), file_info, diagnoses=diagnoses))
+        print(format_json(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
     else:
-        print(format_terminal(results, str(path), file_info, diagnoses=diagnoses))
-
+        print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
     return 0
 
 
