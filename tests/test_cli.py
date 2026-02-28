@@ -1,5 +1,6 @@
-"""Tests for CLI argument parsing and dispatch."""
+"""Tests for CLI argument parsing and full dispatch."""
 
+import json
 from bounce_house.cli import create_parser, main
 
 
@@ -46,3 +47,48 @@ class TestParser:
 
     def test_no_command_returns_1(self):
         assert main([]) == 1
+
+
+class TestFullAnalysis:
+    def test_analyze_runs_successfully(self, tmp_wav):
+        result = main(["analyze", str(tmp_wav)])
+        assert result == 0
+
+    def test_analyze_json_output(self, tmp_wav, capsys):
+        main(["analyze", str(tmp_wav), "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert "loudness" in data
+        assert "spectrum" in data
+        assert "stereo" in data
+
+    def test_loudness_subcommand_runs(self, tmp_wav):
+        result = main(["loudness", str(tmp_wav)])
+        assert result == 0
+
+    def test_spectrum_subcommand_runs(self, tmp_wav):
+        result = main(["spectrum", str(tmp_wav)])
+        assert result == 0
+
+    def test_stereo_subcommand_runs(self, tmp_wav):
+        result = main(["stereo", str(tmp_wav)])
+        assert result == 0
+
+    def test_compare_runs(self, tmp_wav, tmp_reference_wav):
+        result = main(["compare", str(tmp_wav), str(tmp_reference_wav)])
+        assert result == 0
+
+    def test_compare_json_output(self, tmp_wav, tmp_reference_wav, capsys):
+        main(["compare", str(tmp_wav), str(tmp_reference_wav), "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert "loudness" in data
+        assert "band_differences" in data.get("spectrum", {})
+
+    def test_nonexistent_file_returns_1(self):
+        result = main(["analyze", "/nonexistent/file.wav"])
+        assert result == 1
+
+    def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
+        result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
+        assert result == 0
