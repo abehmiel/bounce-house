@@ -57,3 +57,146 @@ class TestDiagnosisDataclass:
         assert d.severity == "warn"
         assert d.matched_conditions == 3
         assert d.total_conditions == 4
+
+
+class TestEvaluateDiagnostics:
+    """Test pattern matching with min_match logic."""
+
+    def _make_results(self, **overrides):
+        """Build a full set of AnalysisResult objects with controllable metrics."""
+        loudness = {
+            "integrated_lufs": -12.0,
+            "true_peak_dbtp": -1.5,
+            "loudness_range_lu": 8.0,
+            "crest_factor_db": 14.0,
+        }
+        spectrum = {
+            "centroid_hz": 2000.0,
+            "bandwidth_hz": 2500.0,
+            "rolloff_hz": 6000.0,
+            "flatness": 0.15,
+            "bands": {
+                "sub_bass": -30.0, "bass": -20.0, "low_mid": -18.0,
+                "mid": -15.0, "upper_mid": -17.0, "presence": -22.0,
+                "brilliance": -25.0,
+            },
+        }
+        stereo = {
+            "phase_correlation": 0.5,
+            "stereo_width": 0.25,
+            "min_block_correlation": 0.3,
+            "balance_db": 0.1,
+            "frequency_width": {
+                "sub_bass": 0.95, "low_mid": 0.85,
+                "mid": 0.6, "upper_mid": 0.4, "air": 0.3,
+            },
+        }
+        perceptual = {
+            "brightness": 0.15,
+            "warmth": 0.15,
+        }
+        # Apply overrides: keys like "loudness.integrated_lufs" -> -5.0
+        for path, val in overrides.items():
+            parts = path.split(".", 2)
+            module_metrics = {"loudness": loudness, "spectrum": spectrum,
+                              "stereo": stereo, "perceptual": perceptual}[parts[0]]
+            if len(parts) == 3:
+                module_metrics[parts[1]][parts[2]] = val
+            else:
+                module_metrics[parts[1]] = val
+
+        return [
+            AnalysisResult(module="loudness", metrics=loudness),
+            AnalysisResult(module="spectrum", metrics=spectrum),
+            AnalysisResult(module="stereo", metrics=stereo),
+            AnalysisResult(module="perceptual", metrics=perceptual),
+        ]
+
+    def test_healthy_mix_no_diagnostics(self):
+        results = self._make_results()
+        diagnoses = evaluate_diagnostics(results)
+        assert diagnoses == []
+
+    def test_over_compressed_detected(self):
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 4.0,
+            "loudness.integrated_lufs": -6.0,
+            "loudness.loudness_range_lu": 3.0,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "over_compressed" in patterns
+
+    def test_over_compressed_one_condition_not_enough(self):
+        """Only crest_factor is bad — should NOT fire (min_match=2)."""
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 4.0,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "over_compressed" not in patterns
+
+    def test_muddy_mix_detected(self):
+        results = self._make_results(**{
+            "spectrum.centroid_hz": 1200.0,
+            "perceptual.warmth": 0.30,
+            "perceptual.brightness": 0.05,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "muddy_mix" in patterns
+
+    def test_harsh_mix_detected(self):
+        results = self._make_results(**{
+            "spectrum.centroid_hz": 3200.0,
+            "perceptual.brightness": 0.25,
+            "perceptual.warmth": 0.05,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "harsh_mix" in patterns
+
+    def test_mono_incompatible_detected(self):
+        results = self._make_results(**{
+            "stereo.phase_correlation": 0.05,
+            "stereo.stereo_width": 0.35,
+            "stereo.frequency_width.sub_bass": 0.5,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "mono_incompatible" in patterns
+
+    def test_streaming_unfriendly_detected(self):
+        results = self._make_results(**{
+            "loudness.integrated_lufs": -5.0,
+            "loudness.true_peak_dbtp": -0.3,
+            "loudness.loudness_range_lu": 3.0,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "streaming_unfriendly" in patterns
+
+    def test_diagnosis_has_advice(self):
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 4.0,
+            "loudness.integrated_lufs": -6.0,
+            "loudness.loudness_range_lu": 3.0,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        over = [d for d in diagnoses if d.pattern == "over_compressed"][0]
+        assert len(over.advice) > 20
+        assert over.severity == "fail"
+        assert over.matched_conditions >= 2
+
+    def test_multiple_patterns_can_fire(self):
+        """Over-compressed AND streaming-unfriendly overlap."""
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 4.0,
+            "loudness.integrated_lufs": -5.0,
+            "loudness.loudness_range_lu": 3.0,
+            "loudness.true_peak_dbtp": -0.3,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "over_compressed" in patterns
+        assert "streaming_unfriendly" in patterns
