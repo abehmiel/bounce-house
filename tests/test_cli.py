@@ -396,3 +396,27 @@ class TestStageFlag:
         parser = create_parser()
         with pytest.raises(SystemExit):
             parser.parse_args(["analyze", "mix.wav", "--stage", "stem"])
+
+
+class TestMixModeIntegration:
+    def test_analyze_mix_mode_runs(self, tmp_wav):
+        """Full pipeline with --stage mix completes without error."""
+        result = main(["analyze", str(tmp_wav), "--stage", "mix"])
+        assert result == 0 or result == 1  # may have warnings, should not error
+
+    def test_analyze_mix_mode_json(self, tmp_wav, capsys):
+        """JSON output in mix mode includes stage field."""
+        main(["analyze", str(tmp_wav), "--stage", "mix", "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["stage"] == "mix"
+
+    def test_dir_mix_mode_runs(self, tmp_wav_dir):
+        """Batch dir with --stage mix completes without error."""
+        result = main(["dir", str(tmp_wav_dir), "--stage", "mix"])
+        assert result in (0, 1, 2)
+
+    def test_loudness_mix_mode_runs(self, tmp_wav):
+        """Single module with --stage mix works."""
+        result = main(["loudness", str(tmp_wav), "--stage", "mix"])
+        assert result in (0, 1)
