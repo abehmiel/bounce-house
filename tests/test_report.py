@@ -4,7 +4,7 @@ import json
 
 from bounce_house.audio import AudioData
 from bounce_house.analyzers.base import AnalysisResult, Assessment
-from bounce_house.report import format_terminal, format_json
+from bounce_house.report import format_terminal, format_json, format_dir_summary, format_dir_json
 
 
 def _make_results():
@@ -182,3 +182,107 @@ class TestDiagnosticsJson:
         )
         data = json.loads(output)
         assert "diagnostics" not in data
+
+
+def _make_file_data():
+    """Create mock batch data for 2 files."""
+    return [
+        {
+            "path": "track_a.wav",
+            "file_info": {"sample_rate": 44100, "channels": 2, "duration": 180.0},
+            "results": [
+                AnalysisResult(
+                    module="loudness",
+                    metrics={"integrated_lufs": -14.2, "true_peak_dbtp": -0.3, "crest_factor_db": 8.1},
+                    assessments=[
+                        Assessment("integrated_lufs", -14.2, "pass", "Loudness OK"),
+                        Assessment("true_peak_dbtp", -0.3, "warn", "Peak too hot"),
+                    ],
+                ),
+            ],
+            "diagnoses": [],
+        },
+        {
+            "path": "track_b.wav",
+            "file_info": {"sample_rate": 44100, "channels": 2, "duration": 240.0},
+            "results": [
+                AnalysisResult(
+                    module="loudness",
+                    metrics={"integrated_lufs": -11.8, "true_peak_dbtp": -0.1, "crest_factor_db": 5.2},
+                    assessments=[
+                        Assessment("integrated_lufs", -11.8, "fail", "Too loud"),
+                    ],
+                ),
+            ],
+            "diagnoses": [],
+        },
+    ]
+
+
+class TestDirSummary:
+    def test_returns_string(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert isinstance(output, str)
+
+    def test_contains_directory_summary_header(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert "DIRECTORY SUMMARY" in output
+
+    def test_contains_file_names(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert "track_a.wav" in output
+        assert "track_b.wav" in output
+
+    def test_contains_file_count(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert "2 files" in output
+
+    def test_contains_totals(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert "1 warning" in output.lower() or "1 warn" in output.lower()
+        assert "1 failure" in output.lower() or "1 fail" in output.lower()
+
+    def test_shows_worst_status_per_file(self):
+        output = format_dir_summary(_make_file_data(), "./masters", [])
+        assert "WARN" in output
+        assert "FAIL" in output
+
+    def test_shows_errors(self):
+        errors = [("corrupt.wav", "Cannot read audio file")]
+        output = format_dir_summary(_make_file_data(), "./masters", errors)
+        assert "corrupt.wav" in output
+        assert "Cannot read" in output
+
+
+class TestDirJson:
+    def test_returns_valid_json(self):
+        output = format_dir_json(_make_file_data(), "./masters")
+        data = json.loads(output)
+        assert isinstance(data, dict)
+
+    def test_has_files_array(self):
+        output = format_dir_json(_make_file_data(), "./masters")
+        data = json.loads(output)
+        assert "files" in data
+        assert len(data["files"]) == 2
+
+    def test_has_directory_key(self):
+        output = format_dir_json(_make_file_data(), "./masters")
+        data = json.loads(output)
+        assert data["directory"] == "./masters"
+
+    def test_has_summary(self):
+        output = format_dir_json(_make_file_data(), "./masters")
+        data = json.loads(output)
+        assert data["summary"]["total_files"] == 2
+        assert data["summary"]["total_warnings"] == 1
+        assert data["summary"]["total_failures"] == 1
+
+    def test_each_file_has_standard_structure(self):
+        output = format_dir_json(_make_file_data(), "./masters")
+        data = json.loads(output)
+        for f in data["files"]:
+            assert "file" in f
+            assert "format" in f
+            assert "assessments" in f
+            assert "summary" in f

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
@@ -334,3 +335,152 @@ def _format_value(key: str, value: Any) -> str:
             return f"{value:+.1f}"
         return f"{value:.4f}"
     return str(value)
+
+
+def format_dir_summary(
+    file_data: list[dict],
+    directory: str,
+    errors: list[tuple[str, str]] | None = None,
+) -> str:
+    """Format a summary table for batch directory analysis."""
+    lines: list[str] = []
+    total_files = len(file_data) + (len(errors) if errors else 0)
+
+    lines.append("")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(f"{_BOLD}  DIRECTORY SUMMARY ({total_files} files){_RESET}")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append("")
+
+    lines.append(f"  {'File':<24} {'LUFS':>6} {'Peak':>6} {'Crest':>6} {'W':>3} {'F':>3}  Status")
+    lines.append(f"  {'─' * 56}")
+
+    total_warns = 0
+    total_fails = 0
+
+    for data in file_data:
+        filename = Path(data["path"]).name
+        if len(filename) > 22:
+            filename = filename[:19] + "..."
+
+        lufs = ""
+        peak = ""
+        crest = ""
+        for r in data["results"]:
+            if r.module == "loudness":
+                lufs_val = r.metrics.get("integrated_lufs")
+                peak_val = r.metrics.get("true_peak_dbtp") or r.metrics.get("sample_peak_dbfs")
+                crest_val = r.metrics.get("crest_factor_db")
+                if lufs_val is not None:
+                    lufs = f"{lufs_val:+.1f}"
+                if peak_val is not None:
+                    peak = f"{peak_val:+.1f}"
+                if crest_val is not None:
+                    crest = f"{crest_val:.1f}"
+                break
+
+        file_warns = 0
+        file_fails = 0
+        for r in data["results"]:
+            for a in r.assessments:
+                if a.status == "warn":
+                    file_warns += 1
+                elif a.status == "fail":
+                    file_fails += 1
+
+        total_warns += file_warns
+        total_fails += file_fails
+
+        if file_fails > 0:
+            status_color = _RED
+            status_label = "FAIL"
+        elif file_warns > 0:
+            status_color = _YELLOW
+            status_label = "WARN"
+        else:
+            status_color = _GREEN
+            status_label = "PASS"
+
+        lines.append(
+            f"  {filename:<24} {lufs:>6} {peak:>6} {crest:>6} {file_warns:>3} {file_fails:>3}  "
+            f"{status_color}{status_label}{_RESET}"
+        )
+
+    if errors:
+        for err_file, err_msg in errors:
+            filename = err_file
+            if len(filename) > 22:
+                filename = filename[:19] + "..."
+            lines.append(
+                f"  {filename:<24} {'—':>6} {'—':>6} {'—':>6} {'—':>3} {'—':>3}  "
+                f"{_RED}ERROR{_RESET}  {_DIM}{err_msg}{_RESET}"
+            )
+
+    lines.append("")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(f"  {total_warns} warning(s), {total_fails} failure(s) across {total_files} files")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_dir_json(file_data: list[dict], directory: str) -> str:
+    """Format batch directory results as JSON."""
+    files_output = []
+    total_warns = 0
+    total_fails = 0
+
+    for data in file_data:
+        entry: dict[str, Any] = {
+            "file": data["path"],
+            "format": data["file_info"],
+        }
+
+        file_assessments: list[dict] = []
+        for result in data["results"]:
+            entry[result.module] = result.metrics
+            for a in result.assessments:
+                file_assessments.append({
+                    "metric": a.metric,
+                    "value": a.value,
+                    "status": a.status,
+                    "message": a.message,
+                    "reference": a.reference,
+                })
+
+        file_warns = sum(1 for a in file_assessments if a["status"] == "warn")
+        file_fails = sum(1 for a in file_assessments if a["status"] == "fail")
+        total_warns += file_warns
+        total_fails += file_fails
+
+        entry["assessments"] = file_assessments
+        entry["summary"] = {"warnings": file_warns, "failures": file_fails}
+
+        if data.get("diagnoses"):
+            entry["diagnostics"] = [
+                {
+                    "pattern": d.pattern,
+                    "name": d.name,
+                    "severity": d.severity,
+                    "diagnosis": d.diagnosis,
+                    "advice": d.advice,
+                    "matched_conditions": d.matched_conditions,
+                    "total_conditions": d.total_conditions,
+                }
+                for d in data["diagnoses"]
+            ]
+
+        files_output.append(entry)
+
+    output = {
+        "directory": directory,
+        "files": files_output,
+        "summary": {
+            "total_files": len(file_data),
+            "total_warnings": total_warns,
+            "total_failures": total_fails,
+        },
+    }
+
+    return json.dumps(output, indent=2)
