@@ -2,8 +2,14 @@
 
 ## Open
 
+(none)
+
+## Done
+
 ### Add metric documentation / help page
-- Explain each metric: what it measures, why it matters for mixing, what good/bad values look like
-- Cover all modules: loudness (LUFS, LRA, true peak, crest factor), spectrum (centroid, bandwidth, rolloff, flatness, band energies), stereo (phase correlation, M/S ratio, stereo width, balance, frequency-dependent width), perceptual (brightness, warmth)
-- Could be a `bounce-house explain` subcommand, a `--help-metrics` flag, or a man page
-- Consider genre-specific context (e.g., LRA thresholds differ for EDM vs jazz)
+- Implemented as `bounce-house explain` subcommand
+- Three drill-down levels: overview, module, single metric
+- Fuzzy matching on metric names and aliases
+- `--technical` flag for measurement standards and methods
+- Inline genre-specific context for all relevant metrics
+- 21 metrics documented across 4 modules
