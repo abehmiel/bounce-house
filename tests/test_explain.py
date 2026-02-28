@@ -1,0 +1,97 @@
+"""Tests for metric documentation and explain command."""
+
+from bounce_house.metric_docs import MetricDoc, METRICS, MODULES, resolve_topic
+
+
+class TestMetricDocStructure:
+    def test_metric_doc_has_required_fields(self):
+        doc = METRICS["integrated_lufs"]
+        assert doc.key == "integrated_lufs"
+        assert doc.name == "Integrated LUFS"
+        assert doc.module == "loudness"
+        assert isinstance(doc.summary, str) and len(doc.summary) > 0
+        assert isinstance(doc.explanation, str) and len(doc.explanation) > 0
+        assert isinstance(doc.good_range, str) and len(doc.good_range) > 0
+        assert isinstance(doc.genre_notes, str)
+        assert isinstance(doc.technical, str) and len(doc.technical) > 0
+        assert isinstance(doc.aliases, list)
+
+    def test_all_loudness_metrics_documented(self):
+        loudness_keys = MODULES["loudness"]
+        expected = {
+            "integrated_lufs", "loudness_range_lu", "true_peak_dbtp",
+            "sample_peak_dbfs", "rms_db", "crest_factor_db",
+        }
+        assert set(loudness_keys) == expected
+
+    def test_all_spectrum_metrics_documented(self):
+        spectrum_keys = MODULES["spectrum"]
+        expected = {
+            "centroid_hz", "bandwidth_hz", "rolloff_hz", "flatness", "bands",
+        }
+        assert set(spectrum_keys) == expected
+
+    def test_all_stereo_metrics_documented(self):
+        stereo_keys = MODULES["stereo"]
+        expected = {
+            "phase_correlation", "mid_rms_db", "side_rms_db", "ms_ratio_db",
+            "stereo_width", "balance_db", "min_block_correlation",
+            "frequency_width",
+        }
+        assert set(stereo_keys) == expected
+
+    def test_all_perceptual_metrics_documented(self):
+        perceptual_keys = MODULES["perceptual"]
+        expected = {"brightness", "warmth"}
+        assert set(perceptual_keys) == expected
+
+    def test_every_metric_key_exists_in_METRICS(self):
+        for module, keys in MODULES.items():
+            for key in keys:
+                assert key in METRICS, f"{key} in MODULES[{module}] but not in METRICS"
+
+    def test_modules_covers_all_four(self):
+        assert set(MODULES.keys()) == {"loudness", "spectrum", "stereo", "perceptual"}
+
+
+class TestResolveTopic:
+    def test_exact_module_match(self):
+        kind, result = resolve_topic("loudness")
+        assert kind == "module"
+        assert result == "loudness"
+
+    def test_exact_metric_key_match(self):
+        kind, result = resolve_topic("integrated_lufs")
+        assert kind == "metric"
+        assert result == "integrated_lufs"
+
+    def test_alias_match(self):
+        kind, result = resolve_topic("lufs")
+        assert kind == "metric"
+        assert result == "integrated_lufs"
+
+    def test_substring_match(self):
+        kind, result = resolve_topic("centroid")
+        assert kind == "metric"
+        assert result == "centroid_hz"
+
+    def test_case_insensitive(self):
+        kind, result = resolve_topic("LUFS")
+        assert kind == "metric"
+        assert result == "integrated_lufs"
+
+    def test_no_match_returns_none(self):
+        kind, result = resolve_topic("xyzzy")
+        assert kind == "none"
+        assert isinstance(result, list)  # list of suggestions
+
+    def test_partial_match_cent(self):
+        kind, result = resolve_topic("cent")
+        assert kind == "metric"
+        assert result == "centroid_hz"
+
+    def test_module_abbreviation_not_confused(self):
+        # "stereo" is a module, not a metric
+        kind, result = resolve_topic("stereo")
+        assert kind == "module"
+        assert result == "stereo"
