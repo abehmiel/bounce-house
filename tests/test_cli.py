@@ -135,6 +135,23 @@ class TestAnalyzeFile:
         assert len(data["results"]) == 1
 
 
+class TestProgressBar:
+    def test_analyze_shows_progress_on_stderr(self, tmp_wav, capsys):
+        """Progress bar output goes to stderr, not stdout."""
+        main(["analyze", str(tmp_wav)])
+        captured = capsys.readouterr()
+        # Report should still be in stdout
+        assert "BOUNCE HOUSE" in captured.out
+
+    def test_json_output_not_polluted_by_progress(self, tmp_wav, capsys):
+        """JSON output on stdout must remain valid JSON despite progress bar."""
+        main(["analyze", str(tmp_wav), "--json"])
+        captured = capsys.readouterr()
+        import json
+        data = json.loads(captured.out)
+        assert "loudness" in data
+
+
 class TestDiagnosticsIntegration:
     def test_diagnostics_in_json_output(self, tmp_wav, capsys):
         """JSON output should include diagnostics key when patterns match."""

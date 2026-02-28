@@ -6,6 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
+from rich.console import Console
+
 from bounce_house.audio import load_audio
 from bounce_house.analyzers.base import AnalysisResult
 from bounce_house.analyzers.loudness import LoudnessAnalyzer
@@ -16,6 +19,9 @@ from bounce_house.rules import evaluate_rules
 from bounce_house.diagnostics import evaluate_diagnostics
 from bounce_house.metric_docs import resolve_topic
 from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric
+
+
+_STDERR_CONSOLE = Console(stderr=True)
 
 
 ALL_ANALYZERS = [
@@ -77,6 +83,7 @@ def _analyze_file(
     file_path: str,
     reference_path: str | None = None,
     analyzers: list | None = None,
+    on_module: callable | None = None,
 ) -> dict:
     """Run all computation for a file and return structured data.
 
@@ -92,6 +99,8 @@ def _analyze_file(
         analyzers = ALL_ANALYZERS
     results: list[AnalysisResult] = []
     for analyzer in analyzers:
+        if on_module:
+            on_module(analyzer.name)
         if reference:
             result = analyzer.compare(audio, reference)
         else:
@@ -120,8 +129,24 @@ def _run_analysis(
     use_json: bool = False,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
+    active_analyzers = analyzers if analyzers is not None else ALL_ANALYZERS
     try:
-        data = _analyze_file(file_path, reference_path, analyzers)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=_STDERR_CONSOLE,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Analyzing modules", total=len(active_analyzers))
+
+            def on_module(name: str):
+                progress.update(task, description=f"Analyzing {name}")
+                progress.advance(task)
+
+            data = _analyze_file(file_path, reference_path, active_analyzers, on_module=on_module)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
