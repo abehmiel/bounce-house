@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.metric_docs import METRICS, MODULES, MODULE_TITLES, MetricDoc
 
 
 # ANSI color codes
@@ -211,6 +212,74 @@ def format_json(
     output["summary"] = {"warnings": warns, "failures": fails}
 
     return json.dumps(output, indent=2)
+
+
+def format_explain_overview() -> str:
+    """Format overview of all metrics — one line per metric, grouped by module."""
+    lines: list[str] = []
+
+    lines.append("")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(f"{_BOLD}  BOUNCE HOUSE — Metric Reference{_RESET}")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+
+    for module_key, metric_keys in MODULES.items():
+        title = MODULE_TITLES.get(module_key, module_key.title())
+        lines.append("")
+        lines.append(f"{_BOLD}── {title} {'─' * (55 - len(title))}{_RESET}")
+
+        for key in metric_keys:
+            doc = METRICS[key]
+            lines.append(f"  {doc.name:<24} {_DIM}{doc.summary}{_RESET}")
+
+    lines.append("")
+    lines.append(f"{_DIM}  Use 'bounce-house explain <module>' for details.{_RESET}")
+    lines.append(f"{_DIM}  Use 'bounce-house explain <metric>' for a single metric.{_RESET}")
+    lines.append(f"{_DIM}  Add --technical for measurement standards and methods.{_RESET}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def format_explain_module(module: str, technical: bool = False) -> str:
+    """Format full explanation of all metrics in a module."""
+    title = MODULE_TITLES.get(module, module.title())
+    metric_keys = MODULES[module]
+
+    lines: list[str] = []
+    lines.append("")
+    lines.append(f"{_BOLD}── {title} {'─' * (55 - len(title))}{_RESET}")
+
+    for key in metric_keys:
+        doc = METRICS[key]
+        lines.extend(_format_metric_block(doc, technical))
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def format_explain_metric(key: str, technical: bool = False) -> str:
+    """Format a single metric's full documentation."""
+    doc = METRICS[key]
+    lines: list[str] = []
+    lines.append("")
+    lines.extend(_format_metric_block(doc, technical))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _format_metric_block(doc: MetricDoc, technical: bool) -> list[str]:
+    """Format one metric's documentation block."""
+    lines: list[str] = []
+    lines.append("")
+    lines.append(f"  {_BOLD}{doc.name}{_RESET}")
+    lines.append(f"    {doc.explanation}")
+    lines.append(f"    {_GREEN}Good range:{_RESET} {doc.good_range}")
+    if doc.genre_notes:
+        lines.append(f"    {_YELLOW}Genre:{_RESET} {doc.genre_notes}")
+    if technical:
+        lines.append(f"    {_DIM}Standard/Method:{_RESET} {doc.technical}")
+    return lines
 
 
 def _format_duration(seconds: float) -> str:

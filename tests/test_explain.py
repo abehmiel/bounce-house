@@ -95,3 +95,65 @@ class TestResolveTopic:
         kind, result = resolve_topic("stereo")
         assert kind == "module"
         assert result == "stereo"
+
+
+from bounce_house.report import format_explain_overview, format_explain_module, format_explain_metric
+
+
+class TestFormatExplainOverview:
+    def test_returns_string(self):
+        output = format_explain_overview()
+        assert isinstance(output, str)
+
+    def test_contains_all_module_headers(self):
+        output = format_explain_overview()
+        assert "Loudness" in output
+        assert "Spectral" in output
+        assert "Stereo" in output
+        assert "Perceptual" in output
+
+    def test_contains_metric_names(self):
+        output = format_explain_overview()
+        assert "Integrated LUFS" in output
+        assert "Phase Correlation" in output
+
+    def test_contains_summaries(self):
+        output = format_explain_overview()
+        assert "ITU-R BS.1770" in output
+
+
+class TestFormatExplainModule:
+    def test_loudness_module(self):
+        output = format_explain_module("loudness")
+        assert "Integrated LUFS" in output
+        assert "Good range" in output
+        assert "Genre" in output
+
+    def test_contains_explanations(self):
+        output = format_explain_module("loudness")
+        assert "streaming" in output.lower() or "Streaming" in output
+
+    def test_technical_flag(self):
+        output_basic = format_explain_module("loudness", technical=False)
+        output_tech = format_explain_module("loudness", technical=True)
+        assert "Standard:" in output_tech
+        assert "Method:" in output_tech or "Standard:" in output_tech
+        # Technical output should be longer
+        assert len(output_tech) > len(output_basic)
+
+
+class TestFormatExplainMetric:
+    def test_single_metric(self):
+        output = format_explain_metric("integrated_lufs")
+        assert "Integrated LUFS" in output
+        assert "Good range" in output
+        assert "-16 to -8 LUFS" in output
+
+    def test_technical_flag(self):
+        output = format_explain_metric("integrated_lufs", technical=True)
+        assert "ITU-R BS.1770" in output
+        assert "K-weighted" in output
+
+    def test_no_technical_by_default(self):
+        output = format_explain_metric("integrated_lufs", technical=False)
+        assert "Standard:" not in output
