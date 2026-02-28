@@ -286,3 +286,33 @@ class TestDirJson:
             assert "format" in f
             assert "assessments" in f
             assert "summary" in f
+
+
+class TestStageInReport:
+    def _make_results(self):
+        from bounce_house.analyzers.base import AnalysisResult
+        return [AnalysisResult(module="loudness", metrics={"integrated_lufs": -12.0})]
+
+    def test_terminal_header_shows_master_by_default(self):
+        from bounce_house.report import format_terminal
+        output = format_terminal(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60})
+        assert "Mix Analysis Report" in output
+
+    def test_terminal_header_shows_mix_stage(self):
+        from bounce_house.report import format_terminal
+        output = format_terminal(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}, stage="mix")
+        assert "Pre-Master Mix" in output
+
+    def test_json_includes_stage(self):
+        import json
+        from bounce_house.report import format_json
+        output = format_json(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}, stage="mix")
+        data = json.loads(output)
+        assert data["stage"] == "mix"
+
+    def test_json_default_stage_is_master(self):
+        import json
+        from bounce_house.report import format_json
+        output = format_json(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60})
+        data = json.loads(output)
+        assert data["stage"] == "master"

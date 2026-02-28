@@ -170,9 +170,9 @@ def _run_analysis(
         print(f"Error: {e}", file=sys.stderr)
         return 1
     if use_json:
-        print(format_json(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
+        print(format_json(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
     else:
-        print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
+        print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
     return 0
 
 
@@ -242,11 +242,11 @@ def _run_dir(
         return 1
 
     if use_json:
-        print(format_dir_json(file_data, directory))
+        print(format_dir_json(file_data, directory, stage=profile.name))
     else:
         for data in file_data:
-            print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]))
-        print(format_dir_summary(file_data, directory, errors))
+            print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
+        print(format_dir_summary(file_data, directory, errors, stage=profile.name))
 
     return _dir_exit_code(file_data)
 

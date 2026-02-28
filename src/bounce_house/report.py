@@ -69,6 +69,7 @@ def format_terminal(
     filename: str,
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
+    stage: str = "master",
 ) -> str:
     """Format analysis results as rich terminal output.
 
@@ -91,7 +92,8 @@ def format_terminal(
 
     lines.append("")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
-    lines.append(f"{_BOLD}  BOUNCE HOUSE — Mix Analysis Report{_RESET}")
+    stage_label = "Pre-Master Mix Analysis" if stage == "mix" else "Mix Analysis Report"
+    lines.append(f"{_BOLD}  BOUNCE HOUSE — {stage_label}{_RESET}")
     lines.append(f"{_DIM}  {filename} ({sr} Hz, {ch_str}, {duration_str}){_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
 
@@ -198,6 +200,7 @@ def format_json(
     filename: str,
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
+    stage: str = "master",
 ) -> str:
     """Format analysis results as JSON.
 
@@ -214,6 +217,7 @@ def format_json(
     output: dict[str, Any] = {
         "file": filename,
         "format": file_info,
+        "stage": stage,
     }
 
     all_assessments: list[dict] = []
@@ -341,6 +345,7 @@ def format_dir_summary(
     file_data: list[dict],
     directory: str,
     errors: list[tuple[str, str]] | None = None,
+    stage: str = "master",
 ) -> str:
     """Format a summary table for batch directory analysis."""
     lines: list[str] = []
@@ -348,7 +353,8 @@ def format_dir_summary(
 
     lines.append("")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
-    lines.append(f"{_BOLD}  DIRECTORY SUMMARY ({total_files} files){_RESET}")
+    stage_label = " (Pre-Master Mix)" if stage == "mix" else ""
+    lines.append(f"{_BOLD}  DIRECTORY SUMMARY{stage_label} ({total_files} files){_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     lines.append("")
 
@@ -425,7 +431,7 @@ def format_dir_summary(
     return "\n".join(lines)
 
 
-def format_dir_json(file_data: list[dict], directory: str) -> str:
+def format_dir_json(file_data: list[dict], directory: str, stage: str = "master") -> str:
     """Format batch directory results as JSON."""
     files_output = []
     total_warns = 0
@@ -475,6 +481,7 @@ def format_dir_json(file_data: list[dict], directory: str) -> str:
 
     output = {
         "directory": directory,
+        "stage": stage,
         "files": files_output,
         "summary": {
             "total_files": len(file_data),
