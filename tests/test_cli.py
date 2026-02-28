@@ -38,6 +38,11 @@ class TestParser:
         args = parser.parse_args(["stereo", "mix.wav"])
         assert args.command == "stereo"
 
+    def test_perceptual_subcommand(self):
+        parser = create_parser()
+        args = parser.parse_args(["perceptual", "mix.wav"])
+        assert args.command == "perceptual"
+
     def test_compare_subcommand(self):
         parser = create_parser()
         args = parser.parse_args(["compare", "mix.wav", "ref.wav"])
@@ -88,6 +93,10 @@ class TestFullAnalysis:
     def test_nonexistent_file_returns_1(self):
         result = main(["analyze", "/nonexistent/file.wav"])
         assert result == 1
+
+    def test_perceptual_subcommand_runs(self, tmp_wav):
+        result = main(["perceptual", str(tmp_wav)])
+        assert result == 0
 
     def test_corrupt_file_returns_1(self, tmp_path, capsys):
         corrupt = tmp_path / "corrupt.wav"

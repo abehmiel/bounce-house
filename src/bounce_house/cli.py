@@ -47,6 +47,7 @@ def create_parser() -> argparse.ArgumentParser:
         ("loudness", "Loudness and dynamics analysis"),
         ("spectrum", "Spectral analysis"),
         ("stereo", "Stereo imaging and phase analysis"),
+        ("perceptual", "Perceptual quality analysis"),
     ]:
         sub = subparsers.add_parser(name, help=desc)
         sub.add_argument("file", help="Path to .wav file")
