@@ -20,7 +20,7 @@ class TestMetricDocStructure:
         loudness_keys = MODULES["loudness"]
         expected = {
             "integrated_lufs", "loudness_range_lu", "true_peak_dbtp",
-            "sample_peak_dbfs", "rms_db", "crest_factor_db",
+            "sample_peak_dbfs", "rms_db", "crest_factor_db", "plr_db",
         }
         assert set(loudness_keys) == expected
 

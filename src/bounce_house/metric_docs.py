@@ -176,6 +176,32 @@ _CREST_FACTOR = MetricDoc(
     aliases=["crest", "crest_factor", "dynamics", "transients"],
 )
 
+_PLR = MetricDoc(
+    key="plr_db",
+    name="Peak-to-Loudness Ratio (PLR)",
+    module="loudness",
+    summary="True peak minus integrated LUFS — over-compression indicator.",
+    explanation=(
+        "The difference between the true peak level and the integrated "
+        "loudness. Low PLR indicates the limiter ceiling is very close to "
+        "the average loudness, meaning the audio has been pushed hard "
+        "against the limiter. Well-mastered audio typically has PLR above "
+        "10 dB. Below 8 dB suggests excessive limiting."
+    ),
+    good_range="Above 10 dB",
+    genre_notes=(
+        "EDM/hip-hop: PLR 8-12 dB. Pop: 10-14 dB. Rock: 10-16 dB. "
+        "Jazz/classical: 14-20+ dB. Below 8 dB in any genre likely "
+        "indicates audible limiting artifacts."
+    ),
+    technical=(
+        "Method: true_peak_dBTP - integrated_LUFS. Related to PSR "
+        "(Peak-to-Short-term Loudness Ratio) which uses a 3s BS.1770 "
+        "window. PLR is the simplest useful over-compression indicator."
+    ),
+    aliases=["plr", "peak_to_loudness", "peak_loudness_ratio"],
+)
+
 # --- Spectrum metrics ---
 
 _CENTROID = MetricDoc(
@@ -554,7 +580,7 @@ METRICS: dict[str, MetricDoc] = {
     doc.key: doc
     for doc in [
         _INTEGRATED_LUFS, _LOUDNESS_RANGE, _TRUE_PEAK, _SAMPLE_PEAK,
-        _RMS, _CREST_FACTOR,
+        _RMS, _CREST_FACTOR, _PLR,
         _CENTROID, _BANDWIDTH, _ROLLOFF, _FLATNESS, _BANDS,
         _PHASE_CORRELATION, _MID_RMS, _SIDE_RMS, _MS_RATIO,
         _STEREO_WIDTH, _BALANCE, _MIN_BLOCK_CORR, _FREQ_WIDTH,
@@ -565,7 +591,7 @@ METRICS: dict[str, MetricDoc] = {
 MODULES: dict[str, list[str]] = {
     "loudness": [
         "integrated_lufs", "loudness_range_lu", "true_peak_dbtp",
-        "sample_peak_dbfs", "rms_db", "crest_factor_db",
+        "sample_peak_dbfs", "rms_db", "crest_factor_db", "plr_db",
     ],
     "spectrum": [
         "centroid_hz", "bandwidth_hz", "rolloff_hz", "flatness", "bands",

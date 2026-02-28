@@ -94,6 +94,14 @@ def _crest_status(value: float) -> str:
     return "fail"
 
 
+def _plr_status(value: float) -> str:
+    if value > 10:
+        return "pass"
+    if value >= 8:
+        return "warn"
+    return "fail"
+
+
 def _correlation_status(value: float) -> str:
     if value > 0.3:
         return "pass"
@@ -155,6 +163,15 @@ _RULES: dict[str, list[dict]] = {
                 "pass": "Crest factor is {value:.1f} dB — good transient headroom",
                 "warn": "Crest factor is {value:.1f} dB — transients may be over-compressed",
                 "fail": "Crest factor is {value:.1f} dB — heavily squashed, reduce limiting or compression",
+            },
+        },
+        {
+            "metric": "plr_db",
+            "evaluate": _plr_status,
+            "messages": {
+                "pass": "Peak-to-Loudness Ratio is {value:.1f} dB — healthy headroom",
+                "warn": "PLR is {value:.1f} dB — approaching over-limited territory",
+                "fail": "PLR is {value:.1f} dB — heavily limited, consider backing off the limiter",
             },
         },
     ],

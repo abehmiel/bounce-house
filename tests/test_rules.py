@@ -75,3 +75,23 @@ class TestRuleEngine:
         assessments = evaluate_rules(result)
         # Should only assess metrics that are present, not crash
         assert isinstance(assessments, list)
+
+    def test_plr_pass(self):
+        result = AnalysisResult(
+            module="loudness",
+            metrics={"plr_db": 12.0},
+        )
+        assessments = evaluate_rules(result)
+        plr = [a for a in assessments if a.metric == "plr_db"]
+        assert len(plr) == 1
+        assert plr[0].status == "pass"
+
+    def test_plr_fail(self):
+        result = AnalysisResult(
+            module="loudness",
+            metrics={"plr_db": 6.0},
+        )
+        assessments = evaluate_rules(result)
+        plr = [a for a in assessments if a.metric == "plr_db"]
+        assert len(plr) == 1
+        assert plr[0].status == "fail"
