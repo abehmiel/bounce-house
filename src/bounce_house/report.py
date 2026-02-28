@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.diagnostics import Diagnosis
 from bounce_house.metric_docs import METRICS, MODULES, MODULE_TITLES, MetricDoc
 
 
@@ -43,6 +44,7 @@ _METRIC_NAMES = {
     "sample_peak_dbfs": "Sample Peak",
     "rms_db": "RMS Level",
     "crest_factor_db": "Crest Factor",
+    "plr_db": "PLR",
     "centroid_hz": "Centroid",
     "bandwidth_hz": "Bandwidth",
     "rolloff_hz": "Rolloff (85%)",
@@ -65,6 +67,7 @@ def format_terminal(
     results: list[AnalysisResult],
     filename: str,
     file_info: dict[str, Any],
+    diagnoses: list[Diagnosis] | None = None,
 ) -> str:
     """Format analysis results as rich terminal output.
 
@@ -72,6 +75,7 @@ def format_terminal(
         results: List of analysis results from each module.
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
+        diagnoses: Optional list of Diagnosis objects from the pattern engine.
 
     Returns:
         A string with ANSI color codes suitable for terminal display.
@@ -168,6 +172,16 @@ def format_terminal(
         for a in warns:
             lines.append(f"  {_YELLOW}WARN{_RESET}  {a.message}")
 
+    # Mix Diagnostics section
+    if diagnoses:
+        lines.append("")
+        lines.append(f"{_BOLD}── Mix Diagnostics {'─' * 40}{_RESET}")
+        for d in diagnoses:
+            color = _RED if d.severity == "fail" else _YELLOW
+            label = "FAIL" if d.severity == "fail" else "WARN"
+            lines.append(f"  {color}{label}{_RESET}  {_BOLD}{d.name}{_RESET} — {d.diagnosis}")
+            lines.append(f"        {d.advice}")
+
     # Summary
     lines.append("")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
@@ -182,6 +196,7 @@ def format_json(
     results: list[AnalysisResult],
     filename: str,
     file_info: dict[str, Any],
+    diagnoses: list[Diagnosis] | None = None,
 ) -> str:
     """Format analysis results as JSON.
 
@@ -189,6 +204,7 @@ def format_json(
         results: List of analysis results from each module.
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
+        diagnoses: Optional list of Diagnosis objects from the pattern engine.
 
     Returns:
         A JSON-encoded string with file info, per-module metrics,
@@ -217,6 +233,20 @@ def format_json(
 
     output["assessments"] = all_assessments
     output["summary"] = {"warnings": warns, "failures": fails}
+
+    if diagnoses:
+        output["diagnostics"] = [
+            {
+                "pattern": d.pattern,
+                "name": d.name,
+                "severity": d.severity,
+                "diagnosis": d.diagnosis,
+                "advice": d.advice,
+                "matched_conditions": d.matched_conditions,
+                "total_conditions": d.total_conditions,
+            }
+            for d in diagnoses
+        ]
 
     return json.dumps(output, indent=2)
 

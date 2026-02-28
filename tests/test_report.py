@@ -90,3 +90,95 @@ class TestJsonFormat:
         output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
         data = json.loads(output)
         assert "summary" in data
+
+
+from bounce_house.diagnostics import Diagnosis
+
+
+class TestDiagnosticsTerminal:
+    def test_diagnostics_section_shown(self):
+        results = _make_results()
+        diagnoses = [
+            Diagnosis(
+                pattern="over_compressed",
+                name="Over-Compressed",
+                severity="fail",
+                diagnosis="Over-compressed master; dynamics crushed",
+                advice="Reduce bus compressor ratio.",
+                matched_conditions=3,
+                total_conditions=3,
+            ),
+        ]
+        output = format_terminal(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+            diagnoses=diagnoses,
+        )
+        assert "Mix Diagnostics" in output
+        assert "Over-Compressed" in output
+        assert "FAIL" in output
+        assert "Reduce bus compressor" in output
+
+    def test_no_diagnostics_section_when_empty(self):
+        results = _make_results()
+        output = format_terminal(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+            diagnoses=[],
+        )
+        assert "Mix Diagnostics" not in output
+
+    def test_diagnostics_backwards_compatible(self):
+        """Calling without diagnoses param still works."""
+        results = _make_results()
+        output = format_terminal(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+        )
+        assert isinstance(output, str)
+        assert "Mix Diagnostics" not in output
+
+
+class TestDiagnosticsJson:
+    def test_diagnostics_in_json(self):
+        results = _make_results()
+        diagnoses = [
+            Diagnosis(
+                pattern="muddy_mix",
+                name="Muddy Mix",
+                severity="warn",
+                diagnosis="Low-mid buildup",
+                advice="Cut 200-500 Hz",
+                matched_conditions=2,
+                total_conditions=4,
+            ),
+        ]
+        output = format_json(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+            diagnoses=diagnoses,
+        )
+        data = json.loads(output)
+        assert "diagnostics" in data
+        assert len(data["diagnostics"]) == 1
+        assert data["diagnostics"][0]["pattern"] == "muddy_mix"
+        assert data["diagnostics"][0]["matched_conditions"] == 2
+
+    def test_json_no_diagnostics_key_when_empty(self):
+        results = _make_results()
+        output = format_json(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+            diagnoses=[],
+        )
+        data = json.loads(output)
+        assert "diagnostics" not in data
+
+    def test_json_backwards_compatible(self):
+        results = _make_results()
+        output = format_json(
+            results, "mix.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 222.4},
+        )
+        data = json.loads(output)
+        assert "diagnostics" not in data
