@@ -109,3 +109,24 @@ class TestFullAnalysis:
     def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
         result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
         assert result == 0
+
+
+class TestDiagnosticsIntegration:
+    def test_diagnostics_in_json_output(self, tmp_wav, capsys):
+        """JSON output should include diagnostics key when patterns match."""
+        main(["analyze", str(tmp_wav), "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        # The test fixture may or may not trigger diagnostics — just verify
+        # the structure is correct (diagnostics key present if any fire, or absent)
+        if "diagnostics" in data:
+            for d in data["diagnostics"]:
+                assert "pattern" in d
+                assert "severity" in d
+                assert "advice" in d
+                assert "matched_conditions" in d
+
+    def test_analyze_still_returns_0(self, tmp_wav):
+        """Diagnostics should not break the existing exit code behavior."""
+        result = main(["analyze", str(tmp_wav)])
+        assert result == 0

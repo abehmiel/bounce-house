@@ -13,6 +13,7 @@ from bounce_house.analyzers.spectrum import SpectrumAnalyzer
 from bounce_house.analyzers.stereo import StereoAnalyzer
 from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.rules import evaluate_rules
+from bounce_house.diagnostics import evaluate_diagnostics
 from bounce_house.metric_docs import resolve_topic
 from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric
 
@@ -109,6 +110,9 @@ def _run_analysis(
         result.assessments = assessments
         results.append(result)
 
+    # Evaluate multi-metric diagnostic patterns
+    diagnoses = evaluate_diagnostics(results)
+
     file_info = {
         "sample_rate": audio.sample_rate,
         "channels": audio.channels,
@@ -116,9 +120,9 @@ def _run_analysis(
     }
 
     if use_json:
-        print(format_json(results, str(path), file_info))
+        print(format_json(results, str(path), file_info, diagnoses=diagnoses))
     else:
-        print(format_terminal(results, str(path), file_info))
+        print(format_terminal(results, str(path), file_info, diagnoses=diagnoses))
 
     return 0
 
