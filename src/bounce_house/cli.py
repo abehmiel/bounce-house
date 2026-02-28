@@ -81,7 +81,7 @@ def _run_analysis(
     path = Path(file_path)
     try:
         audio = load_audio(path)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
@@ -89,7 +89,7 @@ def _run_analysis(
     if reference_path:
         try:
             reference = load_audio(Path(reference_path))
-        except FileNotFoundError as e:
+        except (FileNotFoundError, ValueError) as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 

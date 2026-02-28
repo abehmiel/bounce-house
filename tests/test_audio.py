@@ -44,6 +44,15 @@ def test_audio_data_duration(tmp_wav):
     assert abs(audio.duration - 1.0) < 0.01
 
 
+def test_load_corrupt_file_raises_value_error(tmp_path):
+    """A file that exists but is not valid audio raises ValueError."""
+    import pytest
+    corrupt = tmp_path / "corrupt.wav"
+    corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
+    with pytest.raises(ValueError, match="Cannot read audio file"):
+        load_audio(corrupt)
+
+
 def test_audio_data_is_stereo(tmp_wav, tmp_mono_wav):
     stereo = load_audio(tmp_wav)
     mono = load_audio(tmp_mono_wav)

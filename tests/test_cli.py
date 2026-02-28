@@ -89,6 +89,14 @@ class TestFullAnalysis:
         result = main(["analyze", "/nonexistent/file.wav"])
         assert result == 1
 
+    def test_corrupt_file_returns_1(self, tmp_path, capsys):
+        corrupt = tmp_path / "corrupt.wav"
+        corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
+        result = main(["analyze", str(corrupt)])
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Error:" in captured.err
+
     def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
         result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
         assert result == 0

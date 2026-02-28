@@ -40,7 +40,10 @@ def load_audio(path: Path) -> AudioData:
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {path}")
 
-    samples, sample_rate = sf.read(str(path), dtype="float64")
+    try:
+        samples, sample_rate = sf.read(str(path), dtype="float64")
+    except sf.LibsndfileError as e:
+        raise ValueError(f"Cannot read audio file: {path} ({e})") from e
 
     # Ensure 2D: (num_samples, num_channels)
     if samples.ndim == 1:
