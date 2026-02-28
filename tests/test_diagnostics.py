@@ -200,3 +200,86 @@ class TestEvaluateDiagnostics:
         patterns = [d.pattern for d in diagnoses]
         assert "over_compressed" in patterns
         assert "streaming_unfriendly" in patterns
+
+
+class TestEdgeCases:
+    """Boundary conditions and edge cases for diagnostic patterns."""
+
+    def _make_results(self, **overrides):
+        """Reuse the helper from TestEvaluateDiagnostics."""
+        return TestEvaluateDiagnostics._make_results(
+            TestEvaluateDiagnostics(), **overrides
+        )
+
+    def test_thin_mix_detected(self):
+        results = self._make_results(**{
+            "perceptual.warmth": 0.04,
+            "spectrum.bands.bass": -35.0,
+            "spectrum.centroid_hz": 3000.0,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "thin_mix" in patterns
+
+    def test_flat_lifeless_detected(self):
+        results = self._make_results(**{
+            "stereo.stereo_width": 0.05,
+            "loudness.loudness_range_lu": 3.0,
+            "stereo.phase_correlation": 0.95,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "flat_lifeless" in patterns
+
+    def test_wide_bass_detected(self):
+        results = self._make_results(**{
+            "stereo.frequency_width.sub_bass": 0.4,
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "wide_bass" in patterns
+
+    def test_exact_threshold_does_not_fire(self):
+        """Conditions use strict < and >, so values at the boundary should not match."""
+        results = self._make_results(**{
+            "loudness.crest_factor_db": 6.0,  # threshold is < 6
+            "loudness.integrated_lufs": -8.0,  # threshold is > -8
+            "loudness.loudness_range_lu": 4.0,  # threshold is < 4
+        })
+        diagnoses = evaluate_diagnostics(results)
+        patterns = [d.pattern for d in diagnoses]
+        assert "over_compressed" not in patterns
+
+    def test_missing_module_does_not_crash(self):
+        """If an analyzer didn't run (e.g., single-module command), patterns should not crash."""
+        results = [
+            AnalysisResult(module="loudness", metrics={
+                "integrated_lufs": -12.0,
+                "crest_factor_db": 14.0,
+                "loudness_range_lu": 8.0,
+            }),
+        ]
+        diagnoses = evaluate_diagnostics(results)
+        assert isinstance(diagnoses, list)
+
+    def test_none_metric_value_handled(self):
+        """A metric with value None (e.g., crest_factor for silence) should not crash."""
+        results = [
+            AnalysisResult(module="loudness", metrics={
+                "integrated_lufs": -12.0,
+                "crest_factor_db": None,
+                "loudness_range_lu": 8.0,
+            }),
+        ]
+        diagnoses = evaluate_diagnostics(results)
+        assert isinstance(diagnoses, list)
+
+    def test_all_patterns_have_required_fields(self):
+        """Verify every pattern in _PATTERNS has the required keys."""
+        from bounce_house.diagnostics import _PATTERNS
+        required = {"pattern", "name", "conditions", "min_match", "severity", "diagnosis", "advice"}
+        for p in _PATTERNS:
+            assert required.issubset(p.keys()), f"Pattern {p.get('pattern')} missing keys: {required - p.keys()}"
+            assert p["severity"] in ("warn", "fail")
+            assert p["min_match"] >= 1
+            assert p["min_match"] <= len(p["conditions"])
