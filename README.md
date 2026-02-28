@@ -82,6 +82,37 @@ bounce-house explain crest        # Single metric (fuzzy matched)
 bounce-house explain lra --technical  # Include measurement standards
 ```
 
+### Batch directory analysis
+
+Analyze all WAV files in a directory at once — great for checking an album, stems folder, or CI pipeline:
+
+```bash
+bounce-house dir ./masters/                    # All WAVs in directory
+bounce-house dir ./masters/ --recursive        # Include subdirectories
+bounce-house dir ./masters/ --json             # Machine-readable output
+bounce-house dir ./masters/ --reference ref.wav  # Compare all against reference
+```
+
+Each file gets a full report, followed by a summary table:
+
+```
+════════════════════════════════════════════════════════════
+  DIRECTORY SUMMARY (3 files)
+════════════════════════════════════════════════════════════
+
+  File                       LUFS   Peak  Crest   W   F  Status
+  ────────────────────────────────────────────────────────
+  track_01.wav              -13.2   -1.0   10.2   0   0  PASS
+  track_02.wav              -11.8   -0.5    8.1   1   0  WARN
+  track_03.wav               -7.4   -0.1    5.2   1   2  FAIL
+
+════════════════════════════════════════════════════════════
+  2 warning(s), 2 failure(s) across 3 files
+════════════════════════════════════════════════════════════
+```
+
+Exit codes for CI/CD gating: `0` = all pass, `1` = warnings, `2` = failures. Corrupt files are logged to stderr without stopping the batch.
+
 ### JSON output
 
 All analysis commands support `--json` for machine-readable output:
@@ -89,6 +120,7 @@ All analysis commands support `--json` for machine-readable output:
 ```bash
 bounce-house analyze mix.wav --json
 bounce-house loudness mix.wav --json
+bounce-house dir ./masters/ --json
 ```
 
 ## Example Output
@@ -268,17 +300,23 @@ Most audio measurement tools are either GUI plugins or single-purpose CLI utilit
 
 Bounce House combines multi-domain analysis (loudness + spectrum + stereo + perceptual) with a rule engine that produces actionable mixing advice — all from the command line. Pipe `--json` output into your own scripts or CI workflows.
 
+## Dependencies
+
+Core: `soundfile`, `numpy`, `scipy`, `pyloudnorm`, `librosa`, `rich`
+
+Optional: `timbral_models` (perceptual analysis), `ffmpeg` (true peak measurement)
+
 ## Development
 
 ```bash
 # Install dev dependencies
-uv sync --dev
+uv sync --extra dev
 
 # Run tests
-uv run pytest
+uv run --extra dev pytest
 
 # Run tests with coverage
-uv run pytest --cov=bounce_house
+uv run --extra dev pytest --cov=bounce_house
 ```
 
 ### Project layout

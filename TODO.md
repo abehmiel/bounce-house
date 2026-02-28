@@ -17,12 +17,16 @@
 - Derived ratios like low_mid/mid, brilliance/bass for tilt-independent diagnostics
 - More robust than absolute band energies for detecting mud/harshness without a reference
 
-### Batch analysis / CI integration (future)
-- Analyze multiple files in one command
-- Exit codes based on worst severity for CI/CD gating
-- Summary table across files
 
 ## Done
+
+### Batch analysis / CI integration
+- `dir` subcommand: `bounce-house dir ./masters/` analyzes all WAV files in a directory
+- `--recursive` flag to include subdirectories, `--json` for machine-readable output, `--reference` for comparison
+- Rich progress bars: nested file + module bars for batch mode, single module bar for file analysis
+- Exit codes for CI/CD gating: 0=all pass, 1=warnings, 2=failures
+- Summary table with per-file LUFS, peak, crest factor, warn/fail counts, worst-status badge
+- Error resilience: corrupt/unreadable files logged to stderr, processing continues
 
 ### Multi-metric diagnostic pattern engine
 - 8 patterns: muddy, harsh, thin, over-compressed, flat, mono-incompatible, wide-bass, streaming-unfriendly
