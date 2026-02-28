@@ -7,11 +7,14 @@ and produces an Assessment with a pass/warn/fail status and actionable message.
 from __future__ import annotations
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.profiles import Profile, get_profile
 
 
-def evaluate_rules(result: AnalysisResult) -> list[Assessment]:
+def evaluate_rules(result: AnalysisResult, profile: Profile | None = None) -> list[Assessment]:
     """Evaluate all applicable rules for a given analysis result."""
-    rules = _RULES.get(result.module, [])
+    if profile is None:
+        profile = get_profile("master")
+    rules = profile.rules.get(result.module, [])
     assessments = []
 
     for rule in rules:

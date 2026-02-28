@@ -1,6 +1,7 @@
 """Tests for rule-based advice engine."""
 
 from bounce_house.analyzers.base import AnalysisResult
+from bounce_house.profiles import get_profile
 from bounce_house.rules import evaluate_rules
 
 
@@ -95,3 +96,39 @@ class TestRuleEngine:
         plr = [a for a in assessments if a.metric == "plr_db"]
         assert len(plr) == 1
         assert plr[0].status == "fail"
+
+
+class TestRulesWithProfile:
+    def test_evaluate_rules_accepts_profile(self):
+        profile = get_profile("master")
+        result = AnalysisResult(
+            module="loudness",
+            metrics={"integrated_lufs": -12.0, "true_peak_dbtp": -1.5,
+                     "loudness_range_lu": 8.0, "crest_factor_db": 14.0},
+        )
+        assessments = evaluate_rules(result, profile)
+        assert all(a.status == "pass" for a in assessments)
+
+    def test_mix_profile_lufs_pass(self):
+        """A -18 LUFS mix should pass in mix mode but warn in master mode."""
+        result = AnalysisResult(
+            module="loudness",
+            metrics={"integrated_lufs": -18.0},
+        )
+        mix_assessments = evaluate_rules(result, get_profile("mix"))
+        master_assessments = evaluate_rules(result, get_profile("master"))
+
+        mix_lufs = [a for a in mix_assessments if a.metric == "integrated_lufs"][0]
+        master_lufs = [a for a in master_assessments if a.metric == "integrated_lufs"][0]
+
+        assert mix_lufs.status == "pass"
+        assert master_lufs.status == "warn"
+
+    def test_backward_compat_no_profile(self):
+        """evaluate_rules still works without a profile (uses master default)."""
+        result = AnalysisResult(
+            module="loudness",
+            metrics={"integrated_lufs": -12.0},
+        )
+        assessments = evaluate_rules(result)
+        assert len(assessments) >= 1
