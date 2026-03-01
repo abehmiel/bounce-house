@@ -4,6 +4,21 @@ version = "0.1.0"
 description = "CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, and actionable advice"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "Abe Hmiel" }]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Other Audience",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
 dependencies = [
     "soundfile>=0.12",
     "numpy>=1.24",
@@ -12,6 +27,11 @@ dependencies = [
     "librosa>=0.10",
     "rich>=13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/abehmiel/bounce-house"
+Repository = "https://github.com/abehmiel/bounce-house"
+Issues = "https://github.com/abehmiel/bounce-house/issues"
 
 [project.optional-dependencies]
 perceptual = ["timbral_models"]
