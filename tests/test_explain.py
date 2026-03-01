@@ -64,8 +64,24 @@ class TestMetricDocStructure:
             for key in keys:
                 assert key in METRICS, f"{key} in MODULES[{module}] but not in METRICS"
 
-    def test_modules_covers_all_four(self):
-        assert set(MODULES.keys()) == {"loudness", "spectrum", "stereo", "perceptual"}
+    def test_all_tuning_metrics_documented(self):
+        tuning_keys = MODULES["tuning"]
+        expected = {
+            "tuning_deviation_cents",
+            "estimated_a_hz",
+            "pitch_drift_range_cents",
+            "chroma_sharpness",
+        }
+        assert set(tuning_keys) == expected
+
+    def test_modules_covers_all(self):
+        assert set(MODULES.keys()) == {
+            "loudness",
+            "spectrum",
+            "stereo",
+            "perceptual",
+            "tuning",
+        }
 
 
 class TestResolveTopic:

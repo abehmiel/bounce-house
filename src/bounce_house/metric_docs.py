@@ -571,6 +571,95 @@ _WARMTH = MetricDoc(
     aliases=["warmth", "warm", "body", "low_mid_energy"],
 )
 
+# --- Tuning metrics ---
+
+_TUNING_DEVIATION = MetricDoc(
+    key="tuning_deviation_cents",
+    name="Tuning Deviation",
+    module="tuning",
+    summary="Offset from A440 concert pitch in cents.",
+    explanation=(
+        "Measures how far the overall tuning of the recording deviates from "
+        "the standard A=440 Hz reference. Positive values mean sharp, negative "
+        "means flat. Some orchestras tune to A=442 or A=443. Older recordings "
+        "or analog tape transfers may show arbitrary tuning offsets."
+    ),
+    good_range="Within ±8 cents of A440",
+    genre_notes=(
+        "Classical orchestras commonly tune to A=441-443. Baroque period "
+        "instruments may use A=415. Some genres deliberately use A=432."
+    ),
+    technical=(
+        "Estimated via librosa.estimate_tuning() which builds a histogram of "
+        "spectral peak deviations from the equal-tempered grid. Resolution: "
+        "1 cent. Works on polyphonic content."
+    ),
+    aliases=["tuning", "pitch", "concert_pitch", "a440"],
+)
+
+_ESTIMATED_A = MetricDoc(
+    key="estimated_a_hz",
+    name="Concert Pitch (A)",
+    module="tuning",
+    summary="Estimated frequency of concert A in Hz.",
+    explanation=(
+        "The estimated absolute frequency of the note A above middle C. "
+        "Standard tuning is A=440 Hz. This is derived from the tuning "
+        "deviation measurement."
+    ),
+    good_range="435-445 Hz",
+    genre_notes="See tuning_deviation_cents for genre context.",
+    technical="Computed as 440 * 2^(deviation_cents / 1200).",
+    aliases=["concert_a", "a_hz"],
+)
+
+_PITCH_DRIFT_RANGE = MetricDoc(
+    key="pitch_drift_range_cents",
+    name="Pitch Drift Range",
+    module="tuning",
+    summary="Total pitch excursion over the track duration.",
+    explanation=(
+        "Measures how much the overall tuning varies from start to finish. "
+        "A high range indicates pitch drift — the recording drifting sharp or "
+        "flat over time. Common in analog tape transfers, poorly calibrated "
+        "instruments, or recordings with temperature-induced tuning drift."
+    ),
+    good_range="Under 8 cents",
+    genre_notes=(
+        "Live recordings may show more drift than studio recordings. "
+        "Analog tape wow can produce 5-20 cents of drift."
+    ),
+    technical=(
+        "Computed by running librosa.estimate_tuning() on overlapping 10-second "
+        "windows with 5-second hop, then taking max - min of the resulting curve."
+    ),
+    aliases=["drift", "pitch_drift", "wow"],
+)
+
+_CHROMA_SHARPNESS = MetricDoc(
+    key="chroma_sharpness",
+    name="Chroma Sharpness",
+    module="tuning",
+    summary="How well-defined the pitch content is (0-1 scale).",
+    explanation=(
+        "Measures whether pitch energy concentrates cleanly in individual "
+        "chroma bins or spreads diffusely across them. Well-tuned recordings "
+        "produce sharp chroma peaks; detuned or poorly intonated recordings "
+        "produce broad, smeared distributions."
+    ),
+    good_range="Above 0.6",
+    genre_notes=(
+        "Noise-heavy genres (industrial, lo-fi) will naturally score lower. "
+        "Highly pitched content (piano, strings) scores higher."
+    ),
+    technical=(
+        "Computed from librosa.feature.chroma_cqt() with forced A440 alignment "
+        "(tuning=0). Per-frame peak-to-mean ratio of the 12-bin chroma vector, "
+        "normalized to a 0-1 scale where 1.0 = all energy in a single bin."
+    ),
+    aliases=["chroma", "intonation"],
+)
+
 # --- Registry ---
 
 METRICS: dict[str, MetricDoc] = {
@@ -598,6 +687,10 @@ METRICS: dict[str, MetricDoc] = {
         _FREQ_WIDTH,
         _BRIGHTNESS,
         _WARMTH,
+        _TUNING_DEVIATION,
+        _ESTIMATED_A,
+        _PITCH_DRIFT_RANGE,
+        _CHROMA_SHARPNESS,
     ]
 }
 
@@ -629,6 +722,12 @@ MODULES: dict[str, list[str]] = {
         "frequency_width",
     ],
     "perceptual": ["brightness", "warmth"],
+    "tuning": [
+        "tuning_deviation_cents",
+        "estimated_a_hz",
+        "pitch_drift_range_cents",
+        "chroma_sharpness",
+    ],
 }
 
 # Module display names (shared with report.py)
@@ -637,6 +736,7 @@ MODULE_TITLES: dict[str, str] = {
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
     "perceptual": "Perceptual Quality",
+    "tuning": "Tuning & Pitch",
 }
 
 
