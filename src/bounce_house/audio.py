@@ -19,11 +19,11 @@ class AudioData:
 
     @property
     def channels(self) -> int:
-        return self.samples.shape[1]
+        return int(self.samples.shape[1])
 
     @property
     def duration(self) -> float:
-        return self.samples.shape[0] / self.sample_rate
+        return float(self.samples.shape[0] / self.sample_rate)
 
     @property
     def is_stereo(self) -> bool:

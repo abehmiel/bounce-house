@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from rich.console import Console
@@ -130,7 +131,7 @@ def _analyze_file(
     file_path: str,
     reference_path: str | None = None,
     analyzers: list | None = None,
-    on_module: callable | None = None,
+    on_module: Callable[[str], None] | None = None,
     profile=None,
 ) -> dict:
     """Run all computation for a file and return structured data.
@@ -367,9 +368,11 @@ def _run_explain(topic: str | None, technical: bool) -> int:
     kind, result = resolve_topic(topic)
 
     if kind == "module":
+        assert isinstance(result, str)
         print(format_explain_module(result, technical=technical))
         return 0
     elif kind == "metric":
+        assert isinstance(result, str)
         print(format_explain_metric(result, technical=technical))
         return 0
     else:
