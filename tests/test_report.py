@@ -327,6 +327,64 @@ class TestDirJson:
             assert "summary" in f
 
 
+def _make_tuning_result():
+    return AnalysisResult(
+        module="tuning",
+        metrics={
+            "tuning_deviation_cents": 3.5,
+            "estimated_a_hz": 440.9,
+            "closest_standard": "A=440",
+            "pitch_drift_std_cents": 1.2,
+            "pitch_drift_range_cents": 2.8,
+            "pitch_drift_trend_cents_per_min": 0.3,
+            "chroma_sharpness": 0.82,
+        },
+    )
+
+
+class TestTuningInTerminal:
+    def test_tuning_section_header(self):
+        results = _make_results() + [_make_tuning_result()]
+        output = format_terminal(
+            results, "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
+        assert "Tuning" in output
+
+    def test_tuning_deviation_displayed(self):
+        results = _make_results() + [_make_tuning_result()]
+        output = format_terminal(
+            results, "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
+        assert "cents" in output
+
+    def test_estimated_a_displayed(self):
+        results = _make_results() + [_make_tuning_result()]
+        output = format_terminal(
+            results, "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
+        assert "440" in output
+
+
+class TestTuningInJson:
+    def test_json_has_tuning_key(self):
+        results = _make_results() + [_make_tuning_result()]
+        output = format_json(
+            results, "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
+        data = json.loads(output)
+        assert "tuning" in data
+        assert "tuning_deviation_cents" in data["tuning"]
+
+    def test_json_tuning_has_all_metrics(self):
+        results = _make_results() + [_make_tuning_result()]
+        output = format_json(
+            results, "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
+        data = json.loads(output)
+        assert data["tuning"]["chroma_sharpness"] == 0.82
+        assert data["tuning"]["estimated_a_hz"] == 440.9
+
+
 class TestStageInReport:
     def _make_results(self):
         from bounce_house.analyzers.base import AnalysisResult
