@@ -37,7 +37,7 @@ class LoudnessAnalyzer(AnalyzerBase):
         # pyloudnorm expects (num_samples,) for mono or (num_samples, num_channels) for multi.
         # AudioData always stores (num_samples, num_channels), so pass as-is for stereo;
         # squeeze to 1-D for mono to satisfy pyloudnorm's channel-count expectations.
-        if audio.channels >= 2:
+        if audio.channels >= 2:  # noqa: SIM108
             samples_for_lufs = audio.samples
         else:
             samples_for_lufs = audio.samples[:, 0]

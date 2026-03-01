@@ -252,7 +252,7 @@ class TestDirCommand:
         """A corrupt file should not stop batch processing."""
         corrupt = tmp_wav_dir / "zzz_corrupt.wav"
         corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
-        result = main(["dir", str(tmp_wav_dir)])
+        _result = main(["dir", str(tmp_wav_dir)])
         captured = capsys.readouterr()
         assert "track_a.wav" in captured.out
         assert "zzz_corrupt.wav" in captured.err

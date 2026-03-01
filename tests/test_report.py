@@ -117,7 +117,7 @@ class TestJsonFormat:
         assert "summary" in data
 
 
-from bounce_house.diagnostics import Diagnosis
+from bounce_house.diagnostics import Diagnosis  # noqa: E402
 
 
 class TestDiagnosticsTerminal:

@@ -111,7 +111,7 @@ class TestResolveTopic:
         assert result == "stereo"
 
 
-from bounce_house.report import (
+from bounce_house.report import (  # noqa: E402
     format_explain_metric,
     format_explain_module,
     format_explain_overview,
@@ -177,7 +177,7 @@ class TestFormatExplainMetric:
         assert "Standard:" not in output
 
 
-from bounce_house.cli import create_parser, main
+from bounce_house.cli import create_parser, main  # noqa: E402
 
 
 class TestExplainCLI:

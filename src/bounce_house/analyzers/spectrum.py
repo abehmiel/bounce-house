@@ -29,7 +29,7 @@ class SpectrumAnalyzer(AnalyzerBase):
         metrics: dict = {}
 
         # Downmix to mono for spectral analysis
-        if audio.is_stereo:
+        if audio.is_stereo:  # noqa: SIM108
             y = np.mean(audio.samples, axis=1)
         else:
             y = audio.samples[:, 0]

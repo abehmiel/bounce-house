@@ -70,7 +70,7 @@ class PerceptualAnalyzer(AnalyzerBase):
 
     def _analyze_proxy(self, audio: AudioData) -> dict:
         """Proxy brightness/warmth estimates from spectral features."""
-        if audio.is_stereo:
+        if audio.is_stereo:  # noqa: SIM108
             y = np.mean(audio.samples, axis=1)
         else:
             y = audio.samples[:, 0]

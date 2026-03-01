@@ -62,7 +62,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--stage",
         choices=["mix", "master"],
         default="master",
-        help="Analysis stage: 'master' (default) or 'mix' (pre-master mix with adjusted thresholds)",
+        help=(
+            "Analysis stage: 'master' (default) or 'mix'"
+            " (pre-master mix with adjusted thresholds)"
+        ),
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -146,7 +149,7 @@ def _analyze_file(
     for analyzer in analyzers:
         if on_module:
             on_module(analyzer.name)
-        if reference:
+        if reference:  # noqa: SIM108
             result = analyzer.compare(audio, reference)
         else:
             result = analyzer.analyze(audio)
@@ -224,7 +227,7 @@ def _run_analysis(
 def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
     """Find .wav files in a directory, sorted alphabetically."""
     dir_path = Path(directory)
-    if recursive:
+    if recursive:  # noqa: SIM108
         files = list(dir_path.rglob("*.wav"))
     else:
         files = list(dir_path.glob("*.wav"))

@@ -343,7 +343,7 @@ class TestEdgeCases:
                 assert p["min_match"] <= len(p["conditions"])
 
 
-from bounce_house.profiles import get_profile
+from bounce_house.profiles import get_profile  # noqa: E402
 
 
 class TestDiagnosticsWithProfile:
