@@ -268,8 +268,7 @@ _ROLLOFF = MetricDoc(
     ),
     good_range="4000 to 8000 Hz (at 85%)",
     genre_notes=(
-        "Dark/muffled mixes: 2000-4000 Hz. Balanced: 4000-8000 Hz. "
-        "Bright/airy: 8000-12000+ Hz."
+        "Dark/muffled mixes: 2000-4000 Hz. Balanced: 4000-8000 Hz. Bright/airy: 8000-12000+ Hz."
     ),
     technical=(
         "Method: frequency at which cumulative spectral energy reaches 85% "
@@ -393,8 +392,7 @@ _SIDE_RMS = MetricDoc(
     good_range="Relative to mid RMS — see M/S Ratio",
     genre_notes="Varies with mix width. See M/S Ratio and Stereo Width.",
     technical=(
-        "Method: side = (L-R)/2, then 20*log10(rms(side)). Part of the "
-        "mid/side decomposition."
+        "Method: side = (L-R)/2, then 20*log10(rms(side)). Part of the mid/side decomposition."
     ),
     aliases=["side", "side_rms", "difference", "side_channel"],
 )
@@ -461,8 +459,7 @@ _BALANCE = MetricDoc(
     good_range="Within +/- 0.5 dB",
     genre_notes="Applies to all genres. Imbalance above 1.5 dB is audible.",
     technical=(
-        "Method: 20*log10(rms(L)) - 20*log10(rms(R)). A simple left-right "
-        "energy comparison."
+        "Method: 20*log10(rms(L)) - 20*log10(rms(R)). A simple left-right energy comparison."
     ),
     aliases=["balance", "pan", "channel_balance", "lr_balance"],
 )
@@ -579,26 +576,56 @@ _WARMTH = MetricDoc(
 METRICS: dict[str, MetricDoc] = {
     doc.key: doc
     for doc in [
-        _INTEGRATED_LUFS, _LOUDNESS_RANGE, _TRUE_PEAK, _SAMPLE_PEAK,
-        _RMS, _CREST_FACTOR, _PLR,
-        _CENTROID, _BANDWIDTH, _ROLLOFF, _FLATNESS, _BANDS,
-        _PHASE_CORRELATION, _MID_RMS, _SIDE_RMS, _MS_RATIO,
-        _STEREO_WIDTH, _BALANCE, _MIN_BLOCK_CORR, _FREQ_WIDTH,
-        _BRIGHTNESS, _WARMTH,
+        _INTEGRATED_LUFS,
+        _LOUDNESS_RANGE,
+        _TRUE_PEAK,
+        _SAMPLE_PEAK,
+        _RMS,
+        _CREST_FACTOR,
+        _PLR,
+        _CENTROID,
+        _BANDWIDTH,
+        _ROLLOFF,
+        _FLATNESS,
+        _BANDS,
+        _PHASE_CORRELATION,
+        _MID_RMS,
+        _SIDE_RMS,
+        _MS_RATIO,
+        _STEREO_WIDTH,
+        _BALANCE,
+        _MIN_BLOCK_CORR,
+        _FREQ_WIDTH,
+        _BRIGHTNESS,
+        _WARMTH,
     ]
 }
 
 MODULES: dict[str, list[str]] = {
     "loudness": [
-        "integrated_lufs", "loudness_range_lu", "true_peak_dbtp",
-        "sample_peak_dbfs", "rms_db", "crest_factor_db", "plr_db",
+        "integrated_lufs",
+        "loudness_range_lu",
+        "true_peak_dbtp",
+        "sample_peak_dbfs",
+        "rms_db",
+        "crest_factor_db",
+        "plr_db",
     ],
     "spectrum": [
-        "centroid_hz", "bandwidth_hz", "rolloff_hz", "flatness", "bands",
+        "centroid_hz",
+        "bandwidth_hz",
+        "rolloff_hz",
+        "flatness",
+        "bands",
     ],
     "stereo": [
-        "phase_correlation", "mid_rms_db", "side_rms_db", "ms_ratio_db",
-        "stereo_width", "balance_db", "min_block_correlation",
+        "phase_correlation",
+        "mid_rms_db",
+        "side_rms_db",
+        "ms_ratio_db",
+        "stereo_width",
+        "balance_db",
+        "min_block_correlation",
         "frequency_width",
     ],
     "perceptual": ["brightness", "warmth"],

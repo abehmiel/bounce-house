@@ -5,14 +5,15 @@ Uses timbral_models if installed, otherwise falls back to spectral proxy metrics
 
 from __future__ import annotations
 
-import numpy as np
 import librosa
+import numpy as np
 
+from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
-from bounce_house.analyzers.base import AnalyzerBase, AnalysisResult
 
 try:
     import timbral_models
+
     _HAS_TIMBRAL = True
 except ImportError:
     _HAS_TIMBRAL = False
@@ -40,9 +41,7 @@ class PerceptualAnalyzer(AnalyzerBase):
         for key in ["brightness", "warmth"]:
             if key in result.metrics and key in ref_result.metrics:
                 diff_key = f"{key}_difference"
-                result.metrics[diff_key] = round(
-                    result.metrics[key] - ref_result.metrics[key], 4
-                )
+                result.metrics[diff_key] = round(result.metrics[key] - ref_result.metrics[key], 4)
                 result.metrics[f"reference_{key}"] = ref_result.metrics[key]
 
         return result

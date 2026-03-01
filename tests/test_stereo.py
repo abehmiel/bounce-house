@@ -2,10 +2,9 @@
 
 import numpy as np
 import soundfile as sf
-from pathlib import Path
 
-from bounce_house.audio import load_audio, AudioData
 from bounce_house.analyzers.stereo import StereoAnalyzer
+from bounce_house.audio import load_audio
 
 
 class TestStereoAnalyzer:
@@ -24,9 +23,13 @@ class TestStereoAnalyzer:
         audio = load_audio(tmp_wav)
         result = self.analyzer.analyze(audio)
         expected = {
-            "phase_correlation", "min_block_correlation",
-            "mid_rms_db", "side_rms_db", "ms_ratio_db",
-            "stereo_width", "balance_db",
+            "phase_correlation",
+            "min_block_correlation",
+            "mid_rms_db",
+            "side_rms_db",
+            "ms_ratio_db",
+            "stereo_width",
+            "balance_db",
         }
         assert expected.issubset(set(result.metrics.keys()))
 
@@ -93,6 +96,7 @@ class TestStereoAnalyzer:
     def test_silent_file_no_fail_assessments(self, tmp_silent_wav):
         """Silent file must not trigger false FAIL on phase metrics."""
         from bounce_house.rules import evaluate_rules
+
         audio = load_audio(tmp_silent_wav)
         result = self.analyzer.analyze(audio)
         assessments = evaluate_rules(result)

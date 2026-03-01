@@ -9,8 +9,12 @@ class TestRuleEngine:
     def test_loudness_pass(self):
         result = AnalysisResult(
             module="loudness",
-            metrics={"integrated_lufs": -12.0, "true_peak_dbtp": -1.5,
-                     "loudness_range_lu": 8.0, "crest_factor_db": 14.0},
+            metrics={
+                "integrated_lufs": -12.0,
+                "true_peak_dbtp": -1.5,
+                "loudness_range_lu": 8.0,
+                "crest_factor_db": 14.0,
+            },
         )
         assessments = evaluate_rules(result)
         statuses = [a.status for a in assessments]
@@ -19,8 +23,12 @@ class TestRuleEngine:
     def test_loudness_too_hot(self):
         result = AnalysisResult(
             module="loudness",
-            metrics={"integrated_lufs": -5.0, "true_peak_dbtp": 0.2,
-                     "loudness_range_lu": 2.0, "crest_factor_db": 4.0},
+            metrics={
+                "integrated_lufs": -5.0,
+                "true_peak_dbtp": 0.2,
+                "loudness_range_lu": 2.0,
+                "crest_factor_db": 4.0,
+            },
         )
         assessments = evaluate_rules(result)
         fails = [a for a in assessments if a.status == "fail"]
@@ -29,8 +37,7 @@ class TestRuleEngine:
     def test_stereo_phase_warning(self):
         result = AnalysisResult(
             module="stereo",
-            metrics={"phase_correlation": 0.1, "min_block_correlation": -0.1,
-                     "balance_db": 0.2},
+            metrics={"phase_correlation": 0.1, "min_block_correlation": -0.1, "balance_db": 0.2},
         )
         assessments = evaluate_rules(result)
         warns = [a for a in assessments if a.status == "warn"]
@@ -39,8 +46,7 @@ class TestRuleEngine:
     def test_stereo_out_of_phase_fail(self):
         result = AnalysisResult(
             module="stereo",
-            metrics={"phase_correlation": -0.5, "min_block_correlation": -0.8,
-                     "balance_db": 0.1},
+            metrics={"phase_correlation": -0.5, "min_block_correlation": -0.8, "balance_db": 0.1},
         )
         assessments = evaluate_rules(result)
         fails = [a for a in assessments if a.status == "fail"]
@@ -58,8 +64,12 @@ class TestRuleEngine:
     def test_assessments_have_messages(self):
         result = AnalysisResult(
             module="loudness",
-            metrics={"integrated_lufs": -5.0, "true_peak_dbtp": 0.2,
-                     "loudness_range_lu": 2.0, "crest_factor_db": 4.0},
+            metrics={
+                "integrated_lufs": -5.0,
+                "true_peak_dbtp": 0.2,
+                "loudness_range_lu": 2.0,
+                "crest_factor_db": 4.0,
+            },
         )
         assessments = evaluate_rules(result)
         for a in assessments:
@@ -103,8 +113,12 @@ class TestRulesWithProfile:
         profile = get_profile("master")
         result = AnalysisResult(
             module="loudness",
-            metrics={"integrated_lufs": -12.0, "true_peak_dbtp": -1.5,
-                     "loudness_range_lu": 8.0, "crest_factor_db": 14.0},
+            metrics={
+                "integrated_lufs": -12.0,
+                "true_peak_dbtp": -1.5,
+                "loudness_range_lu": 8.0,
+                "crest_factor_db": 14.0,
+            },
         )
         assessments = evaluate_rules(result, profile)
         assert all(a.status == "pass" for a in assessments)

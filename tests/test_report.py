@@ -2,9 +2,8 @@
 
 import json
 
-from bounce_house.audio import AudioData
 from bounce_house.analyzers.base import AnalysisResult, Assessment
-from bounce_house.report import format_terminal, format_json, format_dir_summary, format_dir_json
+from bounce_house.report import format_dir_json, format_dir_summary, format_json, format_terminal
 
 
 def _make_results():
@@ -13,8 +12,12 @@ def _make_results():
             module="loudness",
             metrics={"integrated_lufs": -12.0, "true_peak_dbtp": -1.5},
             assessments=[
-                Assessment("integrated_lufs", -12.0, "pass",
-                           "Integrated loudness is -12.0 LUFS — within target range"),
+                Assessment(
+                    "integrated_lufs",
+                    -12.0,
+                    "pass",
+                    "Integrated loudness is -12.0 LUFS — within target range",
+                ),
             ],
         ),
         AnalysisResult(
@@ -26,24 +29,34 @@ def _make_results():
 
 class TestTerminalFormat:
     def test_returns_string(self):
-        output = format_terminal(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_terminal(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         assert isinstance(output, str)
 
     def test_contains_file_name(self):
-        output = format_terminal(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_terminal(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         assert "mix.wav" in output
 
     def test_contains_module_sections(self):
-        output = format_terminal(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_terminal(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         assert "Loudness" in output
         assert "Stereo" in output
 
     def test_contains_pass_indicator(self):
-        output = format_terminal(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_terminal(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         assert "PASS" in output
 
     def test_contains_summary(self):
-        output = format_terminal(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_terminal(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         assert "warning" in output.lower() or "failure" in output.lower() or "0" in output
 
 
@@ -54,7 +67,9 @@ def test_unknown_metric_is_auto_formatted():
         metrics={"integrated_lufs": -12.0, "my_new_metric_db": -3.5},
         assessments=[],
     )
-    output = format_terminal([result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0})
+    output = format_terminal(
+        [result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0}
+    )
     assert "My New Metric Db" in output
 
 
@@ -65,29 +80,39 @@ def test_none_value_not_displayed_as_string():
         metrics={"integrated_lufs": -12.0, "crest_factor_db": None},
         assessments=[],
     )
-    output = format_terminal([result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0})
+    output = format_terminal(
+        [result], "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 60.0}
+    )
     assert "None" not in output
 
 
 class TestJsonFormat:
     def test_returns_valid_json(self):
-        output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_json(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         data = json.loads(output)
         assert isinstance(data, dict)
 
     def test_has_file_key(self):
-        output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_json(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         data = json.loads(output)
         assert data["file"] == "mix.wav"
 
     def test_has_module_keys(self):
-        output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_json(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         data = json.loads(output)
         assert "loudness" in data
         assert "stereo" in data
 
     def test_has_summary(self):
-        output = format_json(_make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4})
+        output = format_json(
+            _make_results(), "mix.wav", {"sample_rate": 44100, "channels": 2, "duration": 222.4}
+        )
         data = json.loads(output)
         assert "summary" in data
 
@@ -110,7 +135,8 @@ class TestDiagnosticsTerminal:
             ),
         ]
         output = format_terminal(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
             diagnoses=diagnoses,
         )
@@ -122,7 +148,8 @@ class TestDiagnosticsTerminal:
     def test_no_diagnostics_section_when_empty(self):
         results = _make_results()
         output = format_terminal(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
             diagnoses=[],
         )
@@ -132,7 +159,8 @@ class TestDiagnosticsTerminal:
         """Calling without diagnoses param still works."""
         results = _make_results()
         output = format_terminal(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
         )
         assert isinstance(output, str)
@@ -154,7 +182,8 @@ class TestDiagnosticsJson:
             ),
         ]
         output = format_json(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
             diagnoses=diagnoses,
         )
@@ -167,7 +196,8 @@ class TestDiagnosticsJson:
     def test_json_no_diagnostics_key_when_empty(self):
         results = _make_results()
         output = format_json(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
             diagnoses=[],
         )
@@ -177,7 +207,8 @@ class TestDiagnosticsJson:
     def test_json_backwards_compatible(self):
         results = _make_results()
         output = format_json(
-            results, "mix.wav",
+            results,
+            "mix.wav",
             {"sample_rate": 44100, "channels": 2, "duration": 222.4},
         )
         data = json.loads(output)
@@ -193,7 +224,11 @@ def _make_file_data():
             "results": [
                 AnalysisResult(
                     module="loudness",
-                    metrics={"integrated_lufs": -14.2, "true_peak_dbtp": -0.3, "crest_factor_db": 8.1},
+                    metrics={
+                        "integrated_lufs": -14.2,
+                        "true_peak_dbtp": -0.3,
+                        "crest_factor_db": 8.1,
+                    },
                     assessments=[
                         Assessment("integrated_lufs", -14.2, "pass", "Loudness OK"),
                         Assessment("true_peak_dbtp", -0.3, "warn", "Peak too hot"),
@@ -208,7 +243,11 @@ def _make_file_data():
             "results": [
                 AnalysisResult(
                     module="loudness",
-                    metrics={"integrated_lufs": -11.8, "true_peak_dbtp": -0.1, "crest_factor_db": 5.2},
+                    metrics={
+                        "integrated_lufs": -11.8,
+                        "true_peak_dbtp": -0.1,
+                        "crest_factor_db": 5.2,
+                    },
                     assessments=[
                         Assessment("integrated_lufs", -11.8, "fail", "Too loud"),
                     ],
@@ -291,28 +330,49 @@ class TestDirJson:
 class TestStageInReport:
     def _make_results(self):
         from bounce_house.analyzers.base import AnalysisResult
+
         return [AnalysisResult(module="loudness", metrics={"integrated_lufs": -12.0})]
 
     def test_terminal_header_shows_master_by_default(self):
         from bounce_house.report import format_terminal
-        output = format_terminal(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60})
+
+        output = format_terminal(
+            self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
         assert "Master Analysis Report" in output
 
     def test_terminal_header_shows_mix_stage(self):
         from bounce_house.report import format_terminal
-        output = format_terminal(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}, stage="mix")
+
+        output = format_terminal(
+            self._make_results(),
+            "test.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 60},
+            stage="mix",
+        )
         assert "Pre-Master Mix" in output
 
     def test_json_includes_stage(self):
         import json
+
         from bounce_house.report import format_json
-        output = format_json(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}, stage="mix")
+
+        output = format_json(
+            self._make_results(),
+            "test.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 60},
+            stage="mix",
+        )
         data = json.loads(output)
         assert data["stage"] == "mix"
 
     def test_json_default_stage_is_master(self):
         import json
+
         from bounce_house.report import format_json
-        output = format_json(self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60})
+
+        output = format_json(
+            self._make_results(), "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 60}
+        )
         data = json.loads(output)
         assert data["stage"] == "master"

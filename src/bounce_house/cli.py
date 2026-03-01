@@ -6,21 +6,35 @@ import argparse
 import sys
 from pathlib import Path
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn, TimeElapsedColumn
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
-from bounce_house.audio import load_audio
 from bounce_house.analyzers.base import AnalysisResult
 from bounce_house.analyzers.loudness import LoudnessAnalyzer
+from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.analyzers.spectrum import SpectrumAnalyzer
 from bounce_house.analyzers.stereo import StereoAnalyzer
-from bounce_house.analyzers.perceptual import PerceptualAnalyzer
-from bounce_house.rules import evaluate_rules
+from bounce_house.audio import load_audio
 from bounce_house.diagnostics import evaluate_diagnostics
-from bounce_house.profiles import get_profile
 from bounce_house.metric_docs import resolve_topic
-from bounce_house.report import format_terminal, format_json, format_explain_overview, format_explain_module, format_explain_metric, format_dir_summary, format_dir_json
-
+from bounce_house.profiles import get_profile
+from bounce_house.report import (
+    format_dir_json,
+    format_dir_summary,
+    format_explain_metric,
+    format_explain_module,
+    format_explain_overview,
+    format_json,
+    format_terminal,
+)
+from bounce_house.rules import evaluate_rules
 
 _STDERR_CONSOLE = Console(stderr=True)
 
@@ -54,7 +68,9 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # analyze — full report
-    analyze_parser = subparsers.add_parser("analyze", help="Run full analysis on a mix", parents=[stage_parent])
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Run full analysis on a mix", parents=[stage_parent]
+    )
     analyze_parser.add_argument("file", help="Path to .wav file")
     analyze_parser.add_argument("--reference", help="Path to reference .wav file")
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -71,18 +87,28 @@ def create_parser() -> argparse.ArgumentParser:
         sub.add_argument("--json", action="store_true", help="Output as JSON")
 
     # compare
-    compare_parser = subparsers.add_parser("compare", help="Compare mix against a reference track", parents=[stage_parent])
+    compare_parser = subparsers.add_parser(
+        "compare", help="Compare mix against a reference track", parents=[stage_parent]
+    )
     compare_parser.add_argument("file", help="Path to .wav file")
     compare_parser.add_argument("reference", help="Path to reference .wav file")
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # explain — metric documentation
-    explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics", parents=[stage_parent])
-    explain_parser.add_argument("topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)")
-    explain_parser.add_argument("--technical", action="store_true", help="Include measurement standards and methods")
+    explain_parser = subparsers.add_parser(
+        "explain", help="Explain analysis metrics", parents=[stage_parent]
+    )
+    explain_parser.add_argument(
+        "topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)"
+    )
+    explain_parser.add_argument(
+        "--technical", action="store_true", help="Include measurement standards and methods"
+    )
 
     # dir — batch analysis
-    dir_parser = subparsers.add_parser("dir", help="Analyze all .wav files in a directory", parents=[stage_parent])
+    dir_parser = subparsers.add_parser(
+        "dir", help="Analyze all .wav files in a directory", parents=[stage_parent]
+    )
     dir_parser.add_argument("path", help="Directory to scan for .wav files")
     dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
     dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -93,6 +119,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 def _get_version() -> str:
     from bounce_house import __version__
+
     return __version__
 
 
@@ -165,14 +192,32 @@ def _run_analysis(
                 progress.update(task, description=f"Analyzing {name}")
                 progress.advance(task)
 
-            data = _analyze_file(file_path, reference_path, active_analyzers, on_module=on_module, profile=profile)
+            data = _analyze_file(
+                file_path, reference_path, active_analyzers, on_module=on_module, profile=profile
+            )
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     if use_json:
-        print(format_json(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
+        print(
+            format_json(
+                data["results"],
+                data["path"],
+                data["file_info"],
+                diagnoses=data["diagnoses"],
+                stage=profile.name,
+            )
+        )
     else:
-        print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
+        print(
+            format_terminal(
+                data["results"],
+                data["path"],
+                data["file_info"],
+                diagnoses=data["diagnoses"],
+                stage=profile.name,
+            )
+        )
     return 0
 
 
@@ -228,7 +273,9 @@ def _run_dir(
                 progress.advance(module_task)
 
             try:
-                data = _analyze_file(str(wav_path), reference_path, on_module=on_module, profile=profile)
+                data = _analyze_file(
+                    str(wav_path), reference_path, on_module=on_module, profile=profile
+                )
                 file_data.append(data)
             except (FileNotFoundError, ValueError) as e:
                 errors.append((str(wav_path.name), str(e)))
@@ -245,7 +292,15 @@ def _run_dir(
         print(format_dir_json(file_data, directory, stage=profile.name))
     else:
         for data in file_data:
-            print(format_terminal(data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"], stage=profile.name))
+            print(
+                format_terminal(
+                    data["results"],
+                    data["path"],
+                    data["file_info"],
+                    diagnoses=data["diagnoses"],
+                    stage=profile.name,
+                )
+            )
         print(format_dir_summary(file_data, directory, errors, stage=profile.name))
 
     return _dir_exit_code(file_data)
@@ -280,14 +335,18 @@ def main(argv: list[str] | None = None) -> int:
     use_json = getattr(args, "json", False)
     profile = get_profile(args.stage)
 
-    if args.command == "analyze":
-        return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
-    elif args.command == "compare":
+    if args.command == "analyze" or args.command == "compare":
         return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
     elif args.command == "explain":
         return _run_explain(args.topic, getattr(args, "technical", False))
     elif args.command == "dir":
-        return _run_dir(args.path, getattr(args, "recursive", False), getattr(args, "reference", None), use_json, profile=profile)
+        return _run_dir(
+            args.path,
+            getattr(args, "recursive", False),
+            getattr(args, "reference", None),
+            use_json,
+            profile=profile,
+        )
     elif args.command in ANALYZER_MAP:
         analyzer = ANALYZER_MAP[args.command]
         return _run_analysis(args.file, None, [analyzer], use_json, profile=profile)

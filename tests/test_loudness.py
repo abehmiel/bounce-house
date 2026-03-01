@@ -1,11 +1,7 @@
 """Tests for loudness and dynamics analyzer."""
 
-import numpy as np
-import soundfile as sf
-from pathlib import Path
-
-from bounce_house.audio import load_audio
 from bounce_house.analyzers.loudness import LoudnessAnalyzer
+from bounce_house.audio import load_audio
 
 
 class TestLoudnessAnalyzer:
@@ -94,8 +90,8 @@ class TestLoudnessAnalyzer:
 
 def test_plr_computed(tmp_wav):
     """PLR (Peak-to-Loudness Ratio) should be true_peak - integrated_lufs."""
-    from bounce_house.audio import load_audio
     from bounce_house.analyzers.loudness import LoudnessAnalyzer
+    from bounce_house.audio import load_audio
 
     audio = load_audio(tmp_wav)
     analyzer = LoudnessAnalyzer()

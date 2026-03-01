@@ -1,8 +1,10 @@
 """Tests for audio loading module."""
 
-import numpy as np
 from pathlib import Path
-from bounce_house.audio import load_audio, AudioData
+
+import numpy as np
+
+from bounce_house.audio import AudioData, load_audio
 
 
 def test_load_stereo_wav(tmp_wav):
@@ -30,6 +32,7 @@ def test_load_preserves_sample_values(tmp_wav):
 
 def test_load_nonexistent_file_raises():
     import pytest
+
     with pytest.raises(FileNotFoundError):
         load_audio(Path("/nonexistent/file.wav"))
 
@@ -47,6 +50,7 @@ def test_audio_data_duration(tmp_wav):
 def test_load_corrupt_file_raises_value_error(tmp_path):
     """A file that exists but is not valid audio raises ValueError."""
     import pytest
+
     corrupt = tmp_path / "corrupt.wav"
     corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
     with pytest.raises(ValueError, match="Cannot read audio file"):

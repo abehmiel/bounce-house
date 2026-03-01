@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import numpy as np
 import librosa
+import numpy as np
 
+from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
-from bounce_house.analyzers.base import AnalyzerBase, AnalysisResult
-
 
 # Mixing-relevant frequency bands
 BANDS = [

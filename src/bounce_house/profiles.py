@@ -30,6 +30,7 @@ def get_profile(stage: str) -> Profile:
 
 # --- Master profile (current defaults) ---
 
+
 def _lufs_status(value: float) -> str:
     if -16 <= value <= -8:
         return "pass"
@@ -332,6 +333,7 @@ MASTER_PROFILE = Profile(
 
 # --- Mix profile (pre-master) ---
 
+
 def _mix_lufs_status(value: float) -> str:
     if -24 <= value <= -14:
         return "pass"
@@ -423,13 +425,9 @@ _MIX_RULES: dict[str, list[dict]] = {
     "stereo": _MASTER_RULES["stereo"],  # identical
 }
 
-_MIX_PATTERNS: list[dict] = [
-    p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"
-]
+_MIX_PATTERNS: list[dict] = [p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"]
 # Replace over_compressed with mix-adjusted version
-_MIX_PATTERNS = [
-    p for p in _MIX_PATTERNS if p["pattern"] != "over_compressed"
-] + [
+_MIX_PATTERNS = [p for p in _MIX_PATTERNS if p["pattern"] != "over_compressed"] + [
     {
         "pattern": "over_compressed",
         "name": "Over-Compressed Mix",
@@ -449,41 +447,43 @@ _MIX_PATTERNS = [
     },
 ]
 # Add mix-only patterns
-_MIX_PATTERNS.extend([
-    {
-        "pattern": "headroom_insufficient",
-        "name": "Insufficient Headroom",
-        "conditions": [
-            ("loudness.sample_peak_dbfs", ">", -3.0),
-            ("loudness.true_peak_dbtp", ">", -2.0),
-        ],
-        "min_match": 1,
-        "severity": "warn",
-        "diagnosis": "Mix peaks too close to 0 dBFS for mastering headroom",
-        "advice": (
-            "Pull mix bus fader down 3-6 dB to leave headroom for mastering. "
-            "Mastering engineers need room to work — peaks near 0 dBFS "
-            "limit their options."
-        ),
-    },
-    {
-        "pattern": "bus_limiter_detected",
-        "name": "Bus Limiter Detected",
-        "conditions": [
-            ("loudness.crest_factor_db", "<", 5),
-            ("loudness.sample_peak_dbfs", ">", -1.5),
-            ("loudness.integrated_lufs", ">", -12),
-        ],
-        "min_match": 3,
-        "severity": "warn",
-        "diagnosis": "Mix bus limiter detected — dynamics decisions baked in",
-        "advice": (
-            "This mix appears to have a limiter on the mix bus. Remove limiting "
-            "before sending to mastering — it bakes in dynamics decisions that "
-            "the mastering engineer should control."
-        ),
-    },
-])
+_MIX_PATTERNS.extend(
+    [
+        {
+            "pattern": "headroom_insufficient",
+            "name": "Insufficient Headroom",
+            "conditions": [
+                ("loudness.sample_peak_dbfs", ">", -3.0),
+                ("loudness.true_peak_dbtp", ">", -2.0),
+            ],
+            "min_match": 1,
+            "severity": "warn",
+            "diagnosis": "Mix peaks too close to 0 dBFS for mastering headroom",
+            "advice": (
+                "Pull mix bus fader down 3-6 dB to leave headroom for mastering. "
+                "Mastering engineers need room to work — peaks near 0 dBFS "
+                "limit their options."
+            ),
+        },
+        {
+            "pattern": "bus_limiter_detected",
+            "name": "Bus Limiter Detected",
+            "conditions": [
+                ("loudness.crest_factor_db", "<", 5),
+                ("loudness.sample_peak_dbfs", ">", -1.5),
+                ("loudness.integrated_lufs", ">", -12),
+            ],
+            "min_match": 3,
+            "severity": "warn",
+            "diagnosis": "Mix bus limiter detected — dynamics decisions baked in",
+            "advice": (
+                "This mix appears to have a limiter on the mix bus. Remove limiting "
+                "before sending to mastering — it bakes in dynamics decisions that "
+                "the mastering engineer should control."
+            ),
+        },
+    ]
+)
 
 MIX_PROFILE = Profile(
     name="mix",

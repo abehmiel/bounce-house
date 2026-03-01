@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
-import json
 
 import numpy as np
 import pyloudnorm as pyln
 
+from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
-from bounce_house.analyzers.base import AnalyzerBase, AnalysisResult
 
 
 class LoudnessAnalyzer(AnalyzerBase):
@@ -60,11 +60,13 @@ class LoudnessAnalyzer(AnalyzerBase):
 
         # True peak via ffmpeg; fall back to sample peak when ffmpeg is unavailable.
         true_peak = self._measure_true_peak(audio)
-        metrics["true_peak_dbtp"] = true_peak if true_peak is not None else metrics["sample_peak_dbfs"]
+        metrics["true_peak_dbtp"] = (
+            true_peak if true_peak is not None else metrics["sample_peak_dbfs"]
+        )
         metrics["true_peak_available"] = true_peak is not None
 
         # RMS level in dB
-        rms_linear = float(np.sqrt(np.mean(audio.samples ** 2)))
+        rms_linear = float(np.sqrt(np.mean(audio.samples**2)))
         rms_db = 20.0 * np.log10(rms_linear + 1e-10)
         metrics["rms_db"] = round(float(rms_db), 1)
 
@@ -123,9 +125,12 @@ class LoudnessAnalyzer(AnalyzerBase):
         try:
             cmd = [
                 "ffmpeg",
-                "-i", str(audio.filepath),
-                "-af", "loudnorm=print_format=json",
-                "-f", "null",
+                "-i",
+                str(audio.filepath),
+                "-af",
+                "loudnorm=print_format=json",
+                "-f",
+                "null",
                 "-",
             ]
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

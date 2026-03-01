@@ -1,6 +1,6 @@
 """Tests for metric documentation and explain command."""
 
-from bounce_house.metric_docs import MetricDoc, METRICS, MODULES, resolve_topic
+from bounce_house.metric_docs import METRICS, MODULES, resolve_topic
 
 
 class TestMetricDocStructure:
@@ -19,23 +19,37 @@ class TestMetricDocStructure:
     def test_all_loudness_metrics_documented(self):
         loudness_keys = MODULES["loudness"]
         expected = {
-            "integrated_lufs", "loudness_range_lu", "true_peak_dbtp",
-            "sample_peak_dbfs", "rms_db", "crest_factor_db", "plr_db",
+            "integrated_lufs",
+            "loudness_range_lu",
+            "true_peak_dbtp",
+            "sample_peak_dbfs",
+            "rms_db",
+            "crest_factor_db",
+            "plr_db",
         }
         assert set(loudness_keys) == expected
 
     def test_all_spectrum_metrics_documented(self):
         spectrum_keys = MODULES["spectrum"]
         expected = {
-            "centroid_hz", "bandwidth_hz", "rolloff_hz", "flatness", "bands",
+            "centroid_hz",
+            "bandwidth_hz",
+            "rolloff_hz",
+            "flatness",
+            "bands",
         }
         assert set(spectrum_keys) == expected
 
     def test_all_stereo_metrics_documented(self):
         stereo_keys = MODULES["stereo"]
         expected = {
-            "phase_correlation", "mid_rms_db", "side_rms_db", "ms_ratio_db",
-            "stereo_width", "balance_db", "min_block_correlation",
+            "phase_correlation",
+            "mid_rms_db",
+            "side_rms_db",
+            "ms_ratio_db",
+            "stereo_width",
+            "balance_db",
+            "min_block_correlation",
             "frequency_width",
         }
         assert set(stereo_keys) == expected
@@ -97,7 +111,11 @@ class TestResolveTopic:
         assert result == "stereo"
 
 
-from bounce_house.report import format_explain_overview, format_explain_module, format_explain_metric
+from bounce_house.report import (
+    format_explain_metric,
+    format_explain_module,
+    format_explain_overview,
+)
 
 
 class TestFormatExplainOverview:

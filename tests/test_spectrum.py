@@ -1,11 +1,7 @@
 """Tests for spectral balance analyzer."""
 
-import numpy as np
-import soundfile as sf
-from pathlib import Path
-
-from bounce_house.audio import load_audio
 from bounce_house.analyzers.spectrum import SpectrumAnalyzer
+from bounce_house.audio import load_audio
 
 
 class TestSpectrumAnalyzer:
@@ -31,7 +27,15 @@ class TestSpectrumAnalyzer:
         result = self.analyzer.analyze(audio)
         assert "bands" in result.metrics
         bands = result.metrics["bands"]
-        expected_bands = ["sub_bass", "bass", "low_mid", "mid", "upper_mid", "presence", "brilliance"]
+        expected_bands = [
+            "sub_bass",
+            "bass",
+            "low_mid",
+            "mid",
+            "upper_mid",
+            "presence",
+            "brilliance",
+        ]
         for band in expected_bands:
             assert band in bands, f"Missing band: {band}"
 

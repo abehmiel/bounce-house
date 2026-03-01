@@ -8,8 +8,7 @@ from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
 from bounce_house.diagnostics import Diagnosis
-from bounce_house.metric_docs import METRICS, MODULES, MODULE_TITLES, MetricDoc
-
+from bounce_house.metric_docs import METRICS, MODULE_TITLES, MODULES, MetricDoc
 
 # ANSI color codes
 _RESET = "\033[0m"
@@ -30,12 +29,14 @@ _MODULE_TITLES = {
 }
 
 # Metrics to hide from terminal display entirely
-_SKIP_METRICS: frozenset[str] = frozenset({
-    "true_peak_available",
-    "timbral_models_available",
-    "proxy_metrics",
-    "mono_file",
-})
+_SKIP_METRICS: frozenset[str] = frozenset(
+    {
+        "true_peak_available",
+        "timbral_models_available",
+        "proxy_metrics",
+        "mono_file",
+    }
+)
 
 # Display-friendly metric names
 _METRIC_NAMES = {
@@ -225,13 +226,15 @@ def format_json(
     for result in results:
         output[result.module] = result.metrics
         for a in result.assessments:
-            all_assessments.append({
-                "metric": a.metric,
-                "value": a.value,
-                "status": a.status,
-                "message": a.message,
-                "reference": a.reference,
-            })
+            all_assessments.append(
+                {
+                    "metric": a.metric,
+                    "value": a.value,
+                    "status": a.status,
+                    "message": a.message,
+                    "reference": a.reference,
+                }
+            )
 
     warns = sum(1 for a in all_assessments if a["status"] == "warn")
     fails = sum(1 for a in all_assessments if a["status"] == "fail")
@@ -447,13 +450,15 @@ def format_dir_json(file_data: list[dict], directory: str, stage: str = "master"
         for result in data["results"]:
             entry[result.module] = result.metrics
             for a in result.assessments:
-                file_assessments.append({
-                    "metric": a.metric,
-                    "value": a.value,
-                    "status": a.status,
-                    "message": a.message,
-                    "reference": a.reference,
-                })
+                file_assessments.append(
+                    {
+                        "metric": a.metric,
+                        "value": a.value,
+                        "status": a.status,
+                        "message": a.message,
+                        "reference": a.reference,
+                    }
+                )
 
         file_warns = sum(1 for a in file_assessments if a["status"] == "warn")
         file_fails = sum(1 for a in file_assessments if a["status"] == "fail")

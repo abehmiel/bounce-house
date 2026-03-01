@@ -1,7 +1,7 @@
 # tests/test_profiles.py
 """Tests for analysis profiles."""
 
-from bounce_house.profiles import Profile, get_profile
+from bounce_house.profiles import get_profile
 
 
 class TestProfile:
@@ -18,6 +18,7 @@ class TestProfile:
 
     def test_get_profile_invalid_raises(self):
         import pytest
+
         with pytest.raises(ValueError, match="Unknown stage"):
             get_profile("stem")
 

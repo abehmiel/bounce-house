@@ -1,9 +1,9 @@
 """Tests for CLI argument parsing and full dispatch."""
 
 import json
-from bounce_house.cli import main, create_parser, _analyze_file, ALL_ANALYZERS, _dir_exit_code
+
 from bounce_house.analyzers.base import AnalysisResult, Assessment
-from bounce_house.profiles import get_profile
+from bounce_house.cli import ALL_ANALYZERS, _analyze_file, _dir_exit_code, create_parser, main
 
 
 class TestParser:
@@ -150,6 +150,7 @@ class TestProgressBar:
         main(["analyze", str(tmp_wav), "--json"])
         captured = capsys.readouterr()
         import json
+
         data = json.loads(captured.out)
         assert "loudness" in data
 
@@ -220,6 +221,7 @@ class TestDirCommand:
         main(["dir", str(tmp_wav_dir), "--json"])
         captured = capsys.readouterr()
         import json
+
         data = json.loads(captured.out)
         assert "files" in data
         assert len(data["files"]) == 3
@@ -258,9 +260,11 @@ class TestDirCommand:
 
 class TestDiscoverWavFiles:
     def test_finds_wav_files(self, tmp_path):
-        from bounce_house.cli import _discover_wav_files
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _discover_wav_files
+
         sr = 44100
         for name in ["a.wav", "b.wav"]:
             sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
@@ -270,9 +274,11 @@ class TestDiscoverWavFiles:
         assert all(f.suffix == ".wav" for f in files)
 
     def test_sorted_alphabetically(self, tmp_path):
-        from bounce_house.cli import _discover_wav_files
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _discover_wav_files
+
         sr = 44100
         for name in ["c.wav", "a.wav", "b.wav"]:
             sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
@@ -280,9 +286,11 @@ class TestDiscoverWavFiles:
         assert [f.name for f in files] == ["a.wav", "b.wav", "c.wav"]
 
     def test_recursive_finds_subdirs(self, tmp_path):
-        from bounce_house.cli import _discover_wav_files
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _discover_wav_files
+
         sr = 44100
         sub = tmp_path / "sub"
         sub.mkdir()
@@ -292,9 +300,11 @@ class TestDiscoverWavFiles:
         assert len(files) == 2
 
     def test_no_recursive_skips_subdirs(self, tmp_path):
-        from bounce_house.cli import _discover_wav_files
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _discover_wav_files
+
         sr = 44100
         sub = tmp_path / "sub"
         sub.mkdir()
@@ -305,34 +315,71 @@ class TestDiscoverWavFiles:
 
     def test_empty_dir_returns_empty(self, tmp_path):
         from bounce_house.cli import _discover_wav_files
+
         files = _discover_wav_files(str(tmp_path), recursive=False)
         assert files == []
 
 
 class TestDirExitCode:
     def test_all_pass_returns_0(self):
-        data = [{"results": [AnalysisResult(module="loudness", assessments=[
-            Assessment("lufs", -14.0, "pass", "ok"),
-        ])]}]
+        data = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness",
+                        assessments=[
+                            Assessment("lufs", -14.0, "pass", "ok"),
+                        ],
+                    )
+                ]
+            }
+        ]
         assert _dir_exit_code(data) == 0
 
     def test_warn_returns_1(self):
-        data = [{"results": [AnalysisResult(module="loudness", assessments=[
-            Assessment("peak", -0.1, "warn", "hot"),
-        ])]}]
+        data = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness",
+                        assessments=[
+                            Assessment("peak", -0.1, "warn", "hot"),
+                        ],
+                    )
+                ]
+            }
+        ]
         assert _dir_exit_code(data) == 1
 
     def test_fail_returns_2(self):
-        data = [{"results": [AnalysisResult(module="loudness", assessments=[
-            Assessment("lufs", -5.0, "fail", "too loud"),
-        ])]}]
+        data = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness",
+                        assessments=[
+                            Assessment("lufs", -5.0, "fail", "too loud"),
+                        ],
+                    )
+                ]
+            }
+        ]
         assert _dir_exit_code(data) == 2
 
     def test_fail_trumps_warn(self):
-        data = [{"results": [AnalysisResult(module="loudness", assessments=[
-            Assessment("peak", -0.1, "warn", "hot"),
-            Assessment("lufs", -5.0, "fail", "too loud"),
-        ])]}]
+        data = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness",
+                        assessments=[
+                            Assessment("peak", -0.1, "warn", "hot"),
+                            Assessment("lufs", -5.0, "fail", "too loud"),
+                        ],
+                    )
+                ]
+            }
+        ]
         assert _dir_exit_code(data) == 2
 
     def test_empty_data_returns_0(self):
@@ -342,8 +389,9 @@ class TestDirExitCode:
 class TestDirIntegration:
     def test_dir_recursive(self, tmp_wav_dir):
         """Test recursive discovery with subdirectories."""
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
         sub = tmp_wav_dir / "subdir"
         sub.mkdir()
         sr = 44100
@@ -355,8 +403,9 @@ class TestDirIntegration:
 
     def test_dir_recursive_json(self, tmp_wav_dir, capsys):
         """Recursive JSON output includes files from subdirectories."""
-        import soundfile as sf
         import numpy as np
+        import soundfile as sf
+
         sub = tmp_wav_dir / "subdir"
         sub.mkdir()
         sr = 44100
@@ -366,6 +415,7 @@ class TestDirIntegration:
         main(["dir", str(tmp_wav_dir), "--recursive", "--json"])
         captured = capsys.readouterr()
         import json
+
         data = json.loads(captured.out)
         assert data["summary"]["total_files"] == 4  # 3 + 1 nested
 
@@ -393,6 +443,7 @@ class TestStageFlag:
 
     def test_stage_invalid_value_rejected(self):
         import pytest
+
         parser = create_parser()
         with pytest.raises(SystemExit):
             parser.parse_args(["analyze", "mix.wav", "--stage", "stem"])

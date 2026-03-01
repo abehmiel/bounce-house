@@ -1,7 +1,7 @@
 """Tests for perceptual analyzer."""
 
-from bounce_house.audio import load_audio
 from bounce_house.analyzers.perceptual import PerceptualAnalyzer
+from bounce_house.audio import load_audio
 
 
 class TestPerceptualAnalyzer:

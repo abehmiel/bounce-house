@@ -5,9 +5,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import stft
 
+from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
-from bounce_house.analyzers.base import AnalyzerBase, AnalysisResult
-
 
 FREQ_BANDS = [
     ("sub_bass", 20, 120),
@@ -43,8 +42,8 @@ class StereoAnalyzer(AnalyzerBase):
         # M/S decomposition
         mid = (L + R) / 2.0
         side = (L - R) / 2.0
-        mid_rms = float(np.sqrt(np.mean(mid ** 2)))
-        side_rms = float(np.sqrt(np.mean(side ** 2)))
+        mid_rms = float(np.sqrt(np.mean(mid**2)))
+        side_rms = float(np.sqrt(np.mean(side**2)))
 
         metrics["mid_rms_db"] = round(20 * np.log10(mid_rms + 1e-10), 1)
         metrics["side_rms_db"] = round(20 * np.log10(side_rms + 1e-10), 1)
@@ -55,8 +54,8 @@ class StereoAnalyzer(AnalyzerBase):
         metrics["stereo_width"] = round(side_rms / total if total > 0 else 0.0, 4)
 
         # Channel balance
-        l_rms_db = 20 * np.log10(float(np.sqrt(np.mean(L ** 2))) + 1e-10)
-        r_rms_db = 20 * np.log10(float(np.sqrt(np.mean(R ** 2))) + 1e-10)
+        l_rms_db = 20 * np.log10(float(np.sqrt(np.mean(L**2))) + 1e-10)
+        r_rms_db = 20 * np.log10(float(np.sqrt(np.mean(R**2))) + 1e-10)
         metrics["balance_db"] = round(l_rms_db - r_rms_db, 1)
 
         # Windowed phase correlation (50ms blocks)

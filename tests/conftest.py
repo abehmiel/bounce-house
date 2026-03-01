@@ -1,9 +1,10 @@
 """Shared test fixtures — synthetic audio generators."""
 
-import numpy as np
-import soundfile as sf
-import pytest
 from pathlib import Path
+
+import numpy as np
+import pytest
+import soundfile as sf
 
 
 @pytest.fixture
