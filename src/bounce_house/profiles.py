@@ -96,6 +96,30 @@ def _balance_status(value: float) -> str:
     return "fail"
 
 
+def _tuning_deviation_status(value: float) -> str:
+    if abs(value) < 8:
+        return "pass"
+    if abs(value) < 20:
+        return "warn"
+    return "fail"
+
+
+def _pitch_drift_status(value: float) -> str:
+    if value < 8:
+        return "pass"
+    if value < 20:
+        return "warn"
+    return "fail"
+
+
+def _chroma_sharpness_status(value: float) -> str:
+    if value > 0.6:
+        return "pass"
+    if value > 0.3:
+        return "warn"
+    return "fail"
+
+
 _MASTER_RULES: dict[str, list[dict]] = {
     "loudness": [
         {
@@ -202,6 +226,45 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "fail": (
                     "Channel balance is {value:+.1f} dB"
                     " — significant imbalance, review pan positions"
+                ),
+            },
+        },
+    ],
+    "tuning": [
+        {
+            "metric": "tuning_deviation_cents",
+            "evaluate": _tuning_deviation_status,
+            "messages": {
+                "pass": "Tuning deviation is {value:+.1f} cents from A440 — within tolerance",
+                "warn": "Tuning deviation is {value:+.1f} cents from A440 — check reference pitch",
+                "fail": (
+                    "Tuning deviation is {value:+.1f} cents from A440 — significant, check tuning"
+                ),
+            },
+        },
+        {
+            "metric": "pitch_drift_range_cents",
+            "evaluate": _pitch_drift_status,
+            "messages": {
+                "pass": "Pitch stability: {value:.1f} cents range — stable",
+                "warn": (
+                    "Pitch stability: {value:.1f} cents range"
+                    " — moderate drift, consider pitch correction"
+                ),
+                "fail": (
+                    "Pitch stability: {value:.1f} cents range"
+                    " — significant drift, re-record or apply pitch correction"
+                ),
+            },
+        },
+        {
+            "metric": "chroma_sharpness",
+            "evaluate": _chroma_sharpness_status,
+            "messages": {
+                "pass": "Chroma definition: {value:.2f} — well-defined pitch content",
+                "warn": "Chroma definition: {value:.2f} — somewhat diffuse pitch content",
+                "fail": (
+                    "Chroma definition: {value:.2f} — very diffuse pitch content, check intonation"
                 ),
             },
         },
@@ -333,6 +396,23 @@ _MASTER_PATTERNS: list[dict] = [
             "Apply a mid/side EQ to mono everything below 150-200 Hz. Check that "
             "kick and bass are panned center. Stereo bass sounds wide on headphones "
             "but loses power on mono playback systems (phones, clubs, PA centers)."
+        ),
+    },
+    {
+        "pattern": "detuned_mix",
+        "name": "Detuned Mix",
+        "conditions": [
+            ("tuning.tuning_deviation_cents", ">", 15),
+            ("tuning.pitch_drift_range_cents", ">", 15),
+            ("tuning.chroma_sharpness", "<", 0.4),
+        ],
+        "min_match": 2,
+        "severity": "warn",
+        "diagnosis": "Possible tuning issues — pitch instability or non-standard tuning",
+        "advice": (
+            "Check instrument tuning against a reference. If pitch drifts over "
+            "time, re-record or apply pitch correction. If the concert pitch is "
+            "intentionally non-440, this warning can be ignored."
         ),
     },
     {
@@ -484,6 +564,7 @@ _MIX_RULES: dict[str, list[dict]] = {
         },
     ],
     "stereo": _MASTER_RULES["stereo"],  # identical
+    "tuning": _MASTER_RULES["tuning"],  # identical
 }
 
 _MIX_PATTERNS: list[dict] = [p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"]
