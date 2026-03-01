@@ -449,6 +449,39 @@ class TestStageFlag:
             parser.parse_args(["analyze", "mix.wav", "--stage", "stem"])
 
 
+class TestTuningIntegration:
+    def test_tuning_subcommand_parses(self):
+        parser = create_parser()
+        args = parser.parse_args(["tuning", "mix.wav"])
+        assert args.command == "tuning"
+
+    def test_tuning_subcommand_runs(self, tmp_wav):
+        """The tuning subcommand should work standalone."""
+        result = main(["tuning", str(tmp_wav)])
+        assert result == 0
+
+    def test_analyze_includes_tuning(self, tmp_wav):
+        """Full analyze should include tuning section."""
+        result = main(["analyze", str(tmp_wav)])
+        assert result == 0
+
+    def test_json_includes_tuning(self, tmp_wav, capsys):
+        """JSON output should include tuning metrics."""
+        main(["analyze", str(tmp_wav), "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert "tuning" in data
+        assert "tuning_deviation_cents" in data["tuning"]
+
+    def test_tuning_json_has_all_metrics(self, tmp_wav, capsys):
+        """JSON output should include all tuning metrics."""
+        main(["analyze", str(tmp_wav), "--json"])
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        for key in ["tuning_deviation_cents", "estimated_a_hz", "chroma_sharpness"]:
+            assert key in data["tuning"], f"Missing: {key}"
+
+
 class TestMixModeIntegration:
     def test_analyze_mix_mode_runs(self, tmp_wav):
         """Full pipeline with --stage mix completes without error."""
