@@ -26,6 +26,7 @@ _MODULE_TITLES = {
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
     "perceptual": "Perceptual Quality",
+    "tuning": "Tuning & Pitch",
 }
 
 # Metrics to hide from terminal display entirely
@@ -62,6 +63,13 @@ _METRIC_NAMES = {
     "warmth": "Warmth",
     "hardness": "Hardness",
     "roughness": "Roughness",
+    "tuning_deviation_cents": "Tuning Deviation",
+    "estimated_a_hz": "Concert Pitch",
+    "closest_standard": "Closest Standard",
+    "pitch_drift_std_cents": "Pitch Drift (std)",
+    "pitch_drift_range_cents": "Pitch Drift (range)",
+    "pitch_drift_trend_cents_per_min": "Pitch Trend",
+    "chroma_sharpness": "Chroma Sharpness",
 }
 
 
@@ -335,9 +343,13 @@ def _format_duration(seconds: float) -> str:
 
 def _format_value(key: str, value: Any) -> str:
     """Format a metric value for display based on its key suffix."""
+    if isinstance(value, str):
+        return value
     if isinstance(value, float):
+        if "cents" in key:
+            return f"{value:+.1f} cents"
         if "hz" in key.lower():
-            return f"{value:,.0f} Hz"
+            return f"{value:,.1f} Hz"
         if "db" in key.lower() or "lufs" in key or "lu" in key:
             return f"{value:+.1f}"
         return f"{value:.4f}"
