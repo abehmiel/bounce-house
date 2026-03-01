@@ -47,8 +47,7 @@ def evaluate_rules(result: AnalysisResult, profile: Profile | None = None) -> li
                         value=diff,
                         status=status,
                         message=(
-                            f"{band.replace('_', '-')} band is"
-                            f" {diff:+.1f} dB {direction} reference"
+                            f"{band.replace('_', '-')} band is {diff:+.1f} dB {direction} reference"
                         ),
                         reference=0.0,
                     )

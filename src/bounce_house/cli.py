@@ -64,8 +64,7 @@ def create_parser() -> argparse.ArgumentParser:
         choices=["mix", "master"],
         default="master",
         help=(
-            "Analysis stage: 'master' (default) or 'mix'"
-            " (pre-master mix with adjusted thresholds)"
+            "Analysis stage: 'master' (default) or 'mix' (pre-master mix with adjusted thresholds)"
         ),
     )
 

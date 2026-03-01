@@ -104,8 +104,7 @@ _MASTER_RULES: dict[str, list[dict]] = {
             "messages": {
                 "pass": "Integrated loudness is {value:.1f} LUFS — within target range",
                 "warn": (
-                    "Integrated loudness is {value:.1f} LUFS"
-                    " — outside typical -16 to -8 range"
+                    "Integrated loudness is {value:.1f} LUFS — outside typical -16 to -8 range"
                 ),
                 "fail": (
                     "Integrated loudness is {value:.1f} LUFS"
@@ -136,8 +135,7 @@ _MASTER_RULES: dict[str, list[dict]] = {
             "messages": {
                 "pass": "Loudness range is {value:.1f} LU — healthy dynamics",
                 "warn": (
-                    "Loudness range is {value:.1f} LU"
-                    " — dynamics may be too compressed or too wide"
+                    "Loudness range is {value:.1f} LU — dynamics may be too compressed or too wide"
                 ),
                 "fail": (
                     "Loudness range is {value:.1f} LU"
@@ -173,10 +171,7 @@ _MASTER_RULES: dict[str, list[dict]] = {
             "evaluate": _correlation_status,
             "messages": {
                 "pass": "Phase correlation is {value:+.3f} — good mono compatibility",
-                "warn": (
-                    "Phase correlation is {value:+.3f}"
-                    " — may lose energy in mono playback"
-                ),
+                "warn": ("Phase correlation is {value:+.3f} — may lose energy in mono playback"),
                 "fail": (
                     "Phase correlation is {value:+.3f}"
                     " — significant phase cancellation, check stereo effects"
@@ -187,10 +182,7 @@ _MASTER_RULES: dict[str, list[dict]] = {
             "metric": "min_block_correlation",
             "evaluate": _min_block_corr_status,
             "messages": {
-                "pass": (
-                    "Minimum block correlation is {value:+.3f}"
-                    " — no phase issues detected"
-                ),
+                "pass": ("Minimum block correlation is {value:+.3f} — no phase issues detected"),
                 "warn": (
                     "Minimum block correlation is {value:+.3f}"
                     " — some sections have near-zero or negative correlation"
@@ -206,10 +198,7 @@ _MASTER_RULES: dict[str, list[dict]] = {
             "evaluate": _balance_status,
             "messages": {
                 "pass": "Channel balance is {value:+.1f} dB — centered",
-                "warn": (
-                    "Channel balance is {value:+.1f} dB"
-                    " — slight imbalance, check panning"
-                ),
+                "warn": ("Channel balance is {value:+.1f} dB — slight imbalance, check panning"),
                 "fail": (
                     "Channel balance is {value:+.1f} dB"
                     " — significant imbalance, review pan positions"
@@ -425,12 +414,10 @@ _MIX_RULES: dict[str, list[dict]] = {
             "evaluate": _mix_lufs_status,
             "messages": {
                 "pass": (
-                    "Integrated loudness is {value:.1f} LUFS"
-                    " — good level for a pre-master mix"
+                    "Integrated loudness is {value:.1f} LUFS — good level for a pre-master mix"
                 ),
                 "warn": (
-                    "Integrated loudness is {value:.1f} LUFS"
-                    " — outside typical -24 to -14 mix range"
+                    "Integrated loudness is {value:.1f} LUFS — outside typical -24 to -14 mix range"
                 ),
                 "fail": (
                     "Integrated loudness is {value:.1f} LUFS"
@@ -442,10 +429,7 @@ _MIX_RULES: dict[str, list[dict]] = {
             "metric": "true_peak_dbtp",
             "evaluate": _mix_true_peak_status,
             "messages": {
-                "pass": (
-                    "True peak is {value:.1f} dBTP"
-                    " — good headroom for mastering"
-                ),
+                "pass": ("True peak is {value:.1f} dBTP — good headroom for mastering"),
                 "warn": (
                     "True peak is {value:.1f} dBTP — consider pulling"
                     " mix bus down 3-6 dB for mastering headroom"
@@ -460,10 +444,7 @@ _MIX_RULES: dict[str, list[dict]] = {
             "metric": "loudness_range_lu",
             "evaluate": _mix_lra_status,
             "messages": {
-                "pass": (
-                    "Loudness range is {value:.1f} LU"
-                    " — healthy dynamics for a mix"
-                ),
+                "pass": ("Loudness range is {value:.1f} LU — healthy dynamics for a mix"),
                 "warn": (
                     "Loudness range is {value:.1f} LU — dynamics may be"
                     " too compressed or too wide for mastering"
@@ -478,10 +459,7 @@ _MIX_RULES: dict[str, list[dict]] = {
             "metric": "crest_factor_db",
             "evaluate": _mix_crest_status,
             "messages": {
-                "pass": (
-                    "Crest factor is {value:.1f} dB"
-                    " — good transient preservation"
-                ),
+                "pass": ("Crest factor is {value:.1f} dB — good transient preservation"),
                 "warn": (
                     "Crest factor is {value:.1f} dB — bus compression may be"
                     " limiting dynamics available for mastering"
@@ -496,14 +474,8 @@ _MIX_RULES: dict[str, list[dict]] = {
             "metric": "plr_db",
             "evaluate": _mix_plr_status,
             "messages": {
-                "pass": (
-                    "Peak-to-Loudness Ratio is {value:.1f} dB"
-                    " — healthy headroom"
-                ),
-                "warn": (
-                    "PLR is {value:.1f} dB"
-                    " — mix may be too loud for mastering"
-                ),
+                "pass": ("Peak-to-Loudness Ratio is {value:.1f} dB — healthy headroom"),
+                "warn": ("PLR is {value:.1f} dB — mix may be too loud for mastering"),
                 "fail": (
                     "PLR is {value:.1f} dB — remove any mix bus limiting"
                     " before sending to mastering"

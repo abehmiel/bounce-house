@@ -1,5 +1,9 @@
 # Bounce House
 
+[![CI](https://github.com/abehmiel/bounce-house/actions/workflows/ci.yml/badge.svg)](https://github.com/abehmiel/bounce-house/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, and actionable mixing advice.
 
 Bounce House reads a `.wav` file and reports EBU R128 loudness, spectral distribution across 7 frequency bands, stereo phase/width analysis, and perceptual brightness/warmth. Every metric gets a pass/warn/fail assessment with plain-English suggestions for what to fix. Compare your mix against a reference track to see band-by-band differences.
@@ -31,6 +35,12 @@ uv sync
 ```bash
 cd bounce-house
 pip install .
+```
+
+### From GitHub (no clone needed)
+
+```bash
+pip install git+https://github.com/abehmiel/bounce-house.git
 ```
 
 ### Optional dependencies
@@ -326,14 +336,22 @@ Optional: `timbral_models` (perceptual analysis), `ffmpeg` (true peak measuremen
 ## Development
 
 ```bash
-# Install dev dependencies
+# Clone and install dev dependencies
+git clone https://github.com/abehmiel/bounce-house.git
+cd bounce-house
 uv sync --extra dev
 
-# Run tests
-uv run --extra dev pytest
+# Set up pre-commit hooks
+uv run pre-commit install
 
-# Run tests with coverage
-uv run --extra dev pytest --cov=bounce_house
+# Run tests
+uv run pytest
+
+# Run linter
+uv run ruff check src/ tests/
+
+# Run type checker
+uv run mypy src/
 ```
 
 ### Project layout
@@ -347,6 +365,7 @@ src/bounce_house/
 ├── report.py            Terminal and JSON formatters
 ├── metric_docs.py       Metric documentation for explain command
 ├── diagnostics.py       Multi-metric diagnostic pattern engine
+├── profiles.py          Stage profiles (mix vs. master thresholds)
 └── analyzers/
     ├── base.py          BaseAnalyzer, AnalysisResult, Assessment
     ├── loudness.py      EBU R128, dynamics, true peak
