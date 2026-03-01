@@ -116,3 +116,56 @@ class TestMixProfile:
         mix = get_profile("mix")
         master = get_profile("master")
         assert len(mix.rules["stereo"]) == len(master.rules["stereo"])
+
+
+class TestTuningRules:
+    def test_master_has_tuning_rules(self):
+        profile = get_profile("master")
+        assert "tuning" in profile.rules
+
+    def test_mix_has_tuning_rules(self):
+        profile = get_profile("mix")
+        assert "tuning" in profile.rules
+
+    def test_tuning_deviation_pass(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "tuning_deviation_cents"][0]
+        assert rule["evaluate"](5.0) == "pass"
+        assert rule["evaluate"](-7.0) == "pass"
+
+    def test_tuning_deviation_warn(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "tuning_deviation_cents"][0]
+        assert rule["evaluate"](12.0) == "warn"
+        assert rule["evaluate"](-15.0) == "warn"
+
+    def test_tuning_deviation_fail(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "tuning_deviation_cents"][0]
+        assert rule["evaluate"](25.0) == "fail"
+
+    def test_pitch_drift_pass(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "pitch_drift_range_cents"][0]
+        assert rule["evaluate"](3.0) == "pass"
+
+    def test_pitch_drift_fail(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "pitch_drift_range_cents"][0]
+        assert rule["evaluate"](25.0) == "fail"
+
+    def test_chroma_sharpness_pass(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "chroma_sharpness"][0]
+        assert rule["evaluate"](0.75) == "pass"
+
+    def test_chroma_sharpness_fail(self):
+        profile = get_profile("master")
+        rule = [r for r in profile.rules["tuning"] if r["metric"] == "chroma_sharpness"][0]
+        assert rule["evaluate"](0.2) == "fail"
+
+    def test_both_profiles_have_detuned_mix_pattern(self):
+        for stage in ("master", "mix"):
+            profile = get_profile(stage)
+            pattern_ids = [p["pattern"] for p in profile.patterns]
+            assert "detuned_mix" in pattern_ids, f"{stage} profile missing detuned_mix"
