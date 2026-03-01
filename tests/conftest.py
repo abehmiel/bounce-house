@@ -71,3 +71,33 @@ def tmp_reference_wav(tmp_path) -> Path:
     path = tmp_path / "reference.wav"
     sf.write(str(path), stereo, sr, subtype="PCM_16")
     return path
+
+
+@pytest.fixture
+def tmp_detuned_wav(tmp_path) -> Path:
+    """Generate a 2-second stereo sine wave tuned to A=445 Hz (~20 cents sharp)."""
+    sr = 44100
+    duration = 2.0
+    t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+    left = 0.5 * np.sin(2 * np.pi * 445 * t)
+    right = 0.3 * np.sin(2 * np.pi * 445 * t + np.pi / 4)
+    stereo = np.column_stack([left, right])
+    path = tmp_path / "detuned.wav"
+    sf.write(str(path), stereo, sr, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_drifting_wav(tmp_path) -> Path:
+    """Generate a 4-second stereo sine that drifts from 440 to 450 Hz."""
+    sr = 44100
+    duration = 4.0
+    n = int(sr * duration)
+    freq = np.linspace(440, 450, n)
+    phase = 2 * np.pi * np.cumsum(freq) / sr
+    left = 0.5 * np.sin(phase)
+    right = 0.3 * np.sin(phase + np.pi / 4)
+    stereo = np.column_stack([left, right])
+    path = tmp_path / "drifting.wav"
+    sf.write(str(path), stereo, sr, subtype="PCM_16")
+    return path
