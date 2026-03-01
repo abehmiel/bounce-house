@@ -4,7 +4,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, and actionable mixing advice.
+CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, tuning & pitch stability, and actionable mixing advice.
 
 Bounce House reads a `.wav` file and reports EBU R128 loudness, spectral distribution across 7 frequency bands, stereo phase/width analysis, and perceptual brightness/warmth. Every metric gets a pass/warn/fail assessment with plain-English suggestions for what to fix. Compare your mix against a reference track to see band-by-band differences.
 
@@ -71,6 +71,7 @@ bounce-house loudness mix.wav    # EBU R128 loudness, dynamics, crest factor
 bounce-house spectrum mix.wav    # Spectral centroid, bandwidth, band energies
 bounce-house stereo mix.wav      # Phase correlation, M/S ratio, stereo width
 bounce-house perceptual mix.wav  # Brightness, warmth (proxy or timbral_models)
+bounce-house tuning mix.wav     # Tuning deviation, pitch drift, chroma sharpness
 ```
 
 ### Compare against a reference
@@ -218,7 +219,7 @@ bounce-house dir ./masters/ --json
 
 ## Metrics
 
-Bounce House measures 22 metrics across 4 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 26 metrics across 5 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 ### Loudness & Dynamics
 
@@ -262,9 +263,18 @@ Bounce House measures 22 metrics across 4 analysis modules. Run `bounce-house ex
 | Brightness | High-frequency energy ratio | 0.1 to 0.3 |
 | Warmth | Low-mid energy ratio | 0.1 to 0.3 |
 
+### Tuning & Pitch
+
+| Metric | What it measures | Good range |
+|--------|-----------------|------------|
+| Tuning Deviation | Offset from A440 concert pitch | Within ±8 cents |
+| Concert Pitch (A) | Estimated frequency of concert A | 435 to 445 Hz |
+| Pitch Drift Range | Total pitch excursion over time | Under 8 cents |
+| Chroma Sharpness | How well-defined pitch content is (0-1) | Above 0.6 |
+
 ## Mix Diagnostics
 
-Beyond per-metric pass/warn/fail assessments, Bounce House includes a **multi-metric diagnostic engine** that detects 8 common mixing problems by combining evidence across modules. Diagnostics appear in a dedicated section at the bottom of the report when triggered.
+Beyond per-metric pass/warn/fail assessments, Bounce House includes a **multi-metric diagnostic engine** that detects 9 common mixing problems by combining evidence across modules. Diagnostics appear in a dedicated section at the bottom of the report when triggered.
 
 Each pattern uses soft-AND logic: a problem fires when enough conditions match (e.g., 2 of 3), so a single borderline metric won't produce a false alarm.
 
@@ -277,6 +287,7 @@ Each pattern uses soft-AND logic: a problem fires when enough conditions match (
 | Flat / Lifeless | warn | No stereo width or dynamic variation |
 | Mono Incompatible | fail | Wide stereo with phase cancellation in mono |
 | Wide Bass | warn | Stereo bass losing energy on mono playback |
+| Detuned Mix | warn | Pitch instability or non-standard tuning |
 | Streaming-Unfriendly | fail | Too hot for platform normalization (-14 LUFS target) |
 
 Diagnostics layer on top of individual metric rules — they don't replace them. A mix can have clean per-metric scores but still trigger a diagnostic (e.g., "streaming-unfriendly" combines LUFS, true peak, and LRA).
@@ -296,13 +307,14 @@ analyzers/        Each analyzer extends BaseAnalyzer
   ├── loudness    EBU R128 via pyloudnorm, crest factor, true peak (ffmpeg)
   ├── spectrum    librosa spectral features + 7-band energy via STFT
   ├── stereo      Phase correlation, M/S decomposition, frequency-dependent width
-  └── perceptual  Brightness/warmth (proxy or timbral_models)
+  ├── perceptual  Brightness/warmth (proxy or timbral_models)
+  └── tuning      Pitch deviation, drift, chroma sharpness (librosa)
   │
   ▼
 rules.py          Data-driven pass/warn/fail rules per metric
   │
   ▼
-diagnostics.py    Multi-metric pattern engine (8 mixing problems)
+diagnostics.py    Multi-metric pattern engine (9 mixing problems)
   │
   ▼
 report.py         Terminal (ANSI) or JSON formatter
@@ -314,7 +326,7 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 22 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 26 metric explanations, used by both the `explain` command and (potentially) report tooltips
 - **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares
@@ -371,7 +383,8 @@ src/bounce_house/
     ├── loudness.py      EBU R128, dynamics, true peak
     ├── spectrum.py      Spectral features, band energies
     ├── stereo.py        Phase, M/S, stereo width
-    └── perceptual.py    Brightness, warmth
+    ├── perceptual.py    Brightness, warmth
+    └── tuning.py        Tuning deviation, pitch drift, chroma sharpness
 tests/
 ├── conftest.py          Synthetic audio fixtures
 ├── test_audio.py
@@ -381,6 +394,7 @@ tests/
 ├── test_rules.py
 ├── test_report.py
 ├── test_cli.py
+├── test_tuning.py
 └── test_diagnostics.py
 ```
 
