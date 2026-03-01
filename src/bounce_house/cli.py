@@ -22,6 +22,7 @@ from bounce_house.analyzers.loudness import LoudnessAnalyzer
 from bounce_house.analyzers.perceptual import PerceptualAnalyzer
 from bounce_house.analyzers.spectrum import SpectrumAnalyzer
 from bounce_house.analyzers.stereo import StereoAnalyzer
+from bounce_house.analyzers.tuning import TuningAnalyzer
 from bounce_house.audio import load_audio
 from bounce_house.diagnostics import evaluate_diagnostics
 from bounce_house.metric_docs import resolve_topic
@@ -45,6 +46,7 @@ ALL_ANALYZERS = [
     SpectrumAnalyzer(),
     StereoAnalyzer(),
     PerceptualAnalyzer(),
+    TuningAnalyzer(),
 ]
 
 ANALYZER_MAP = {a.name: a for a in ALL_ANALYZERS}
@@ -84,6 +86,7 @@ def create_parser() -> argparse.ArgumentParser:
         ("spectrum", "Spectral analysis"),
         ("stereo", "Stereo imaging and phase analysis"),
         ("perceptual", "Perceptual quality analysis"),
+        ("tuning", "Tuning and pitch stability analysis"),
     ]:
         sub = subparsers.add_parser(name, help=desc, parents=[stage_parent])
         sub.add_argument("file", help="Path to .wav file")
