@@ -660,6 +660,68 @@ _CHROMA_SHARPNESS = MetricDoc(
     aliases=["chroma", "intonation"],
 )
 
+_CLOSEST_STANDARD = MetricDoc(
+    key="closest_standard",
+    name="Closest Standard Pitch",
+    module="tuning",
+    summary="Named concert pitch standard nearest to the detected tuning.",
+    explanation=(
+        "Identifies which named concert pitch standard (A=432, A=440, A=442, etc.) "
+        "is closest to the detected tuning. Useful for quickly seeing whether "
+        "a recording uses a non-standard reference pitch."
+    ),
+    good_range="A=440 (standard)",
+    genre_notes="See tuning_deviation_cents for genre context.",
+    technical=(
+        "Computed by finding the minimum distance between the "
+        "measured deviation and known standards."
+    ),
+    aliases=["standard", "reference_pitch"],
+)
+
+_PITCH_DRIFT_STD = MetricDoc(
+    key="pitch_drift_std_cents",
+    name="Pitch Drift (std dev)",
+    module="tuning",
+    summary="Standard deviation of tuning across time windows.",
+    explanation=(
+        "Measures tuning consistency over time. A low standard deviation means "
+        "the tuning stays stable throughout the track. Higher values indicate "
+        "tuning instability — the recording wobbles in pitch over its duration."
+    ),
+    good_range="Under 3 cents",
+    genre_notes=(
+        "Live recordings may show more variation than studio recordings. "
+        "Analog tape wow produces periodic pitch instability."
+    ),
+    technical=(
+        "Standard deviation of librosa.estimate_tuning() values computed on "
+        "overlapping time windows (10-second windows, 5-second hop for long audio)."
+    ),
+    aliases=["drift_std", "pitch_stability"],
+)
+
+_PITCH_DRIFT_TREND = MetricDoc(
+    key="pitch_drift_trend_cents_per_min",
+    name="Pitch Trend",
+    module="tuning",
+    summary="Linear pitch drift rate in cents per minute.",
+    explanation=(
+        "Shows whether pitch is systematically drifting sharp or flat over time. "
+        "Positive values mean the recording gets sharper; negative means flatter. "
+        "Common in analog tape transfers where speed stability degrades."
+    ),
+    good_range="Within ±2 cents/min",
+    genre_notes=(
+        "Vintage recordings transferred from tape may show consistent drift. "
+        "Digital recordings should show near-zero trend."
+    ),
+    technical=(
+        "Linear regression slope of the windowed tuning curve, converted to cents per minute."
+    ),
+    aliases=["pitch_trend", "drift_trend"],
+)
+
 # --- Registry ---
 
 METRICS: dict[str, MetricDoc] = {
@@ -691,6 +753,9 @@ METRICS: dict[str, MetricDoc] = {
         _ESTIMATED_A,
         _PITCH_DRIFT_RANGE,
         _CHROMA_SHARPNESS,
+        _CLOSEST_STANDARD,
+        _PITCH_DRIFT_STD,
+        _PITCH_DRIFT_TREND,
     ]
 }
 
@@ -725,7 +790,10 @@ MODULES: dict[str, list[str]] = {
     "tuning": [
         "tuning_deviation_cents",
         "estimated_a_hz",
+        "closest_standard",
         "pitch_drift_range_cents",
+        "pitch_drift_std_cents",
+        "pitch_drift_trend_cents_per_min",
         "chroma_sharpness",
     ],
 }

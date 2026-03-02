@@ -69,7 +69,10 @@ class TestMetricDocStructure:
         expected = {
             "tuning_deviation_cents",
             "estimated_a_hz",
+            "closest_standard",
             "pitch_drift_range_cents",
+            "pitch_drift_std_cents",
+            "pitch_drift_trend_cents_per_min",
             "chroma_sharpness",
         }
         assert set(tuning_keys) == expected
