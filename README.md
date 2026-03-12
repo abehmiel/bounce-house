@@ -8,6 +8,8 @@ A CLI audio analysis tool that tells you what's wrong with your mix — and what
 
 Bounce House runs 26 metrics across loudness, spectral balance, stereo imaging, tuning, and perceptual quality. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
+I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
+
 ## Quick Start
 
 ```bash
@@ -71,7 +73,7 @@ bounce-house loudness mix.wav    # EBU R128 loudness, dynamics, crest factor
 bounce-house spectrum mix.wav    # Spectral centroid, bandwidth, band energies
 bounce-house stereo mix.wav      # Phase correlation, M/S ratio, stereo width
 bounce-house perceptual mix.wav  # Brightness, warmth (proxy or timbral_models)
-bounce-house tuning mix.wav     # Tuning deviation, pitch drift, chroma sharpness
+bounce-house tuning mix.wav      # Tuning deviation, pitch drift, chroma sharpness
 ```
 
 ### Compare against a reference
@@ -87,9 +89,9 @@ Shows all metrics for your mix alongside band-by-band energy differences against
 Built-in documentation for every metric — what it measures, why it matters, good ranges, and genre-specific context:
 
 ```bash
-bounce-house explain              # Overview of all metrics
-bounce-house explain loudness     # All metrics in a module
-bounce-house explain crest        # Single metric (fuzzy matched)
+bounce-house explain                  # Overview of all metrics
+bounce-house explain loudness         # All metrics in a module
+bounce-house explain crest            # Single metric (fuzzy matched)
 bounce-house explain lra --technical  # Include measurement standards
 ```
 
