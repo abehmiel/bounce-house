@@ -10,3 +10,4 @@ build/
 *.wav
 docs/plans/
 **/CLAUDE.md
+TODO.md

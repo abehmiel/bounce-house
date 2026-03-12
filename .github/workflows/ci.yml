@@ -34,4 +34,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --extra dev
-      - run: uv run pytest -q
+      - run: uv run pytest -q --cov=bounce_house --cov-report=term-missing

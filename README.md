@@ -4,9 +4,9 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, tuning & pitch stability, and actionable mixing advice.
+A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House reads a `.wav` file and reports EBU R128 loudness, spectral distribution across 7 frequency bands, stereo phase/width analysis, and perceptual brightness/warmth. Every metric gets a pass/warn/fail assessment with plain-English suggestions for what to fix. Compare your mix against a reference track to see band-by-band differences.
+Bounce House runs 26 metrics across loudness, spectral balance, stereo imaging, tuning, and perceptual quality. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 ## Quick Start
 
@@ -388,14 +388,17 @@ src/bounce_house/
 tests/
 ├── conftest.py          Synthetic audio fixtures
 ├── test_audio.py
+├── test_cli.py
+├── test_diagnostics.py
+├── test_explain.py
 ├── test_loudness.py
+├── test_perceptual.py
+├── test_profiles.py
+├── test_report.py
+├── test_rules.py
 ├── test_spectrum.py
 ├── test_stereo.py
-├── test_rules.py
-├── test_report.py
-├── test_cli.py
-├── test_tuning.py
-└── test_diagnostics.py
+└── test_tuning.py
 ```
 
 ## License

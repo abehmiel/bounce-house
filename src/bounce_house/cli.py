@@ -101,9 +101,7 @@ def create_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # explain — metric documentation
-    explain_parser = subparsers.add_parser(
-        "explain", help="Explain analysis metrics", parents=[stage_parent]
-    )
+    explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics")
     explain_parser.add_argument(
         "topic", nargs="?", default=None, help="Module or metric name (fuzzy matched)"
     )
@@ -339,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     use_json = getattr(args, "json", False)
-    profile = get_profile(args.stage)
+    profile = get_profile(getattr(args, "stage", "master"))
 
     if args.command == "analyze" or args.command == "compare":
         return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
