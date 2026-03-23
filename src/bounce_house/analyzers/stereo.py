@@ -71,6 +71,9 @@ class StereoAnalyzer(AnalyzerBase):
                 block_corrs.append(float(np.corrcoef(bl, br)[0, 1]))
 
         metrics["min_block_correlation"] = round(min(block_corrs), 4) if block_corrs else 1.0
+        metrics["low_block_correlation"] = (
+            round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else 1.0
+        )
 
         # Frequency-dependent stereo width
         freq_width = self._frequency_stereo_width(L, R, audio.sample_rate)

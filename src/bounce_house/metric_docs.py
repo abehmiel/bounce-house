@@ -490,6 +490,31 @@ _MIN_BLOCK_CORR = MetricDoc(
     aliases=["min_corr", "min_block", "worst_correlation", "block_correlation"],
 )
 
+_LOW_BLOCK_CORR = MetricDoc(
+    key="low_block_correlation",
+    name="Block Correlation (5th Percentile)",
+    module="stereo",
+    summary="5th percentile phase correlation across 50ms blocks.",
+    explanation=(
+        "The 5th percentile of per-block phase correlation values. Unlike the "
+        "minimum, this metric ignores isolated one-off dips (e.g. a single drum "
+        "hit or transient) and instead indicates whether phase issues are sustained "
+        "across multiple sections of the signal."
+    ),
+    good_range="Above 0.0",
+    genre_notes=(
+        "Electronic music with heavy stereo processing may show lower values. "
+        "Sustained negative correlation is problematic for all genres."
+    ),
+    technical=(
+        "Method: signal split into 50ms blocks (block_size = sr * 0.05). "
+        "Pearson correlation computed per block. Returns the 5th percentile "
+        "(numpy.percentile with p=5). Blocks with near-zero standard deviation "
+        "are skipped."
+    ),
+    aliases=["low_corr", "low_block", "p5_correlation", "block_corr_p5"],
+)
+
 _FREQ_WIDTH = MetricDoc(
     key="frequency_width",
     name="Frequency-Dependent Width",
@@ -746,6 +771,7 @@ METRICS: dict[str, MetricDoc] = {
         _STEREO_WIDTH,
         _BALANCE,
         _MIN_BLOCK_CORR,
+        _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
         _BRIGHTNESS,
         _WARMTH,
@@ -784,6 +810,7 @@ MODULES: dict[str, list[str]] = {
         "stereo_width",
         "balance_db",
         "min_block_correlation",
+        "low_block_correlation",
         "frequency_width",
     ],
     "perceptual": ["brightness", "warmth"],

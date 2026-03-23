@@ -37,7 +37,12 @@ class TestRuleEngine:
     def test_stereo_phase_warning(self):
         result = AnalysisResult(
             module="stereo",
-            metrics={"phase_correlation": 0.1, "min_block_correlation": -0.1, "balance_db": 0.2},
+            metrics={
+                "phase_correlation": 0.1,
+                "min_block_correlation": -0.1,
+                "low_block_correlation": -0.1,
+                "balance_db": 0.2,
+            },
         )
         assessments = evaluate_rules(result)
         warns = [a for a in assessments if a.status == "warn"]
@@ -46,7 +51,12 @@ class TestRuleEngine:
     def test_stereo_out_of_phase_fail(self):
         result = AnalysisResult(
             module="stereo",
-            metrics={"phase_correlation": -0.5, "min_block_correlation": -0.8, "balance_db": 0.1},
+            metrics={
+                "phase_correlation": -0.5,
+                "min_block_correlation": -0.8,
+                "low_block_correlation": -0.8,
+                "balance_db": 0.1,
+            },
         )
         assessments = evaluate_rules(result)
         fails = [a for a in assessments if a.status == "fail"]

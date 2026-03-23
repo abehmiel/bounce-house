@@ -50,6 +50,7 @@ class TestMetricDocStructure:
             "stereo_width",
             "balance_db",
             "min_block_correlation",
+            "low_block_correlation",
             "frequency_width",
         }
         assert set(stereo_keys) == expected

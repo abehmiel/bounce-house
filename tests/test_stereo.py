@@ -25,6 +25,7 @@ class TestStereoAnalyzer:
         expected = {
             "phase_correlation",
             "min_block_correlation",
+            "low_block_correlation",
             "mid_rms_db",
             "side_rms_db",
             "ms_ratio_db",

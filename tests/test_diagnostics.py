@@ -95,6 +95,7 @@ class TestEvaluateDiagnostics:
             "phase_correlation": 0.5,
             "stereo_width": 0.25,
             "min_block_correlation": 0.3,
+            "low_block_correlation": 0.3,
             "balance_db": 0.1,
             "frequency_width": {
                 "sub_bass": 0.95,
