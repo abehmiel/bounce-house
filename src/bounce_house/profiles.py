@@ -40,7 +40,7 @@ def _lufs_status(value: float) -> str:
 
 
 def _true_peak_status(value: float) -> str:
-    if value < -1.0:
+    if value <= -0.9:
         return "pass"
     if value <= -0.5:
         return "warn"
@@ -113,9 +113,9 @@ def _pitch_drift_status(value: float) -> str:
 
 
 def _chroma_sharpness_status(value: float) -> str:
-    if value > 0.6:
+    if value > 0.4:
         return "pass"
-    if value > 0.3:
+    if value > 0.2:
         return "warn"
     return "fail"
 
@@ -203,17 +203,19 @@ _MASTER_RULES: dict[str, list[dict]] = {
             },
         },
         {
-            "metric": "min_block_correlation",
+            "metric": "low_block_correlation",
             "evaluate": _min_block_corr_status,
             "messages": {
-                "pass": ("Minimum block correlation is {value:+.3f} — no phase issues detected"),
+                "pass": (
+                    "Block correlation (5th percentile) is {value:+.3f} — no sustained phase issues"
+                ),
                 "warn": (
-                    "Minimum block correlation is {value:+.3f}"
-                    " — some sections have near-zero or negative correlation"
+                    "Block correlation (5th percentile) is {value:+.3f}"
+                    " — sustained sections with near-zero or negative correlation"
                 ),
                 "fail": (
-                    "Minimum block correlation is {value:+.3f}"
-                    " — severe phase cancellation in some sections"
+                    "Block correlation (5th percentile) is {value:+.3f}"
+                    " — sustained phase cancellation across multiple sections"
                 ),
             },
         },
@@ -404,7 +406,7 @@ _MASTER_PATTERNS: list[dict] = [
         "conditions": [
             ("tuning.tuning_deviation_cents", ">", 15),
             ("tuning.pitch_drift_range_cents", ">", 15),
-            ("tuning.chroma_sharpness", "<", 0.4),
+            ("tuning.chroma_sharpness", "<", 0.25),
         ],
         "min_match": 2,
         "severity": "warn",
