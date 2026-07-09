@@ -101,3 +101,17 @@ def tmp_drifting_wav(tmp_path) -> Path:
     path = tmp_path / "drifting.wav"
     sf.write(str(path), stereo, sr, subtype="PCM_16")
     return path
+
+
+@pytest.fixture
+def tmp_short_wav(tmp_path) -> Path:
+    """Generate a 0.2-second stereo file — shorter than pyloudnorm's 400 ms gating block."""
+    sr = 44100
+    duration = 0.2
+    t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+    left = 0.5 * np.sin(2 * np.pi * 440 * t)
+    right = 0.3 * np.sin(2 * np.pi * 440 * t + np.pi / 4)
+    stereo = np.column_stack([left, right])
+    path = tmp_path / "short.wav"
+    sf.write(str(path), stereo, sr, subtype="PCM_16")
+    return path

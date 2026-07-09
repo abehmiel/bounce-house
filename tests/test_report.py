@@ -434,3 +434,40 @@ class TestStageInReport:
         )
         data = json.loads(output)
         assert data["stage"] == "master"
+
+
+class TestStrictJson:
+    @staticmethod
+    def _strict_loads(text: str):
+        def _reject(name):
+            raise AssertionError(f"non-RFC-8259 JSON constant emitted: {name}")
+
+        return json.loads(text, parse_constant=_reject)
+
+    def test_silent_file_json_is_strict(self, tmp_silent_wav, capsys):
+        from bounce_house.cli import main
+
+        main(["analyze", str(tmp_silent_wav), "--json"])
+        data = self._strict_loads(capsys.readouterr().out)
+        # Silence → integrated LUFS is -inf internally → must serialize as null
+        assert data["loudness"]["integrated_lufs"] is None
+        assert data["schema_version"] == 1
+
+    def test_dir_json_is_strict_with_silent_file(self, tmp_path, capsys):
+        import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import main
+
+        sr = 44100
+        sf.write(str(tmp_path / "silent.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
+        main(["dir", str(tmp_path), "--json"])
+        data = self._strict_loads(capsys.readouterr().out)
+        assert data["schema_version"] == 1
+        assert data["files"][0]["loudness"]["integrated_lufs"] is None
+
+    def test_sanitize_replaces_non_finite(self):
+        from bounce_house.report import _sanitize
+
+        dirty = {"a": float("nan"), "b": [float("inf"), 1.5], "c": {"d": float("-inf")}}
+        assert _sanitize(dirty) == {"a": None, "b": [None, 1.5], "c": {"d": None}}

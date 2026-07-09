@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,17 @@ _METRIC_NAMES = {
     "pitch_drift_trend_cents_per_min": "Pitch Trend",
     "chroma_sharpness": "Chroma Sharpness",
 }
+
+
+def _sanitize(obj: Any) -> Any:
+    """Replace non-finite floats (NaN, ±Infinity) with None for strict RFC 8259 JSON."""
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list | tuple):
+        return [_sanitize(v) for v in obj]
+    return obj
 
 
 def format_terminal(
@@ -225,6 +237,7 @@ def format_json(
         all assessments, and a summary of warnings/failures.
     """
     output: dict[str, Any] = {
+        "schema_version": 1,
         "file": filename,
         "format": file_info,
         "stage": stage,
@@ -265,7 +278,7 @@ def format_json(
             for d in diagnoses
         ]
 
-    return json.dumps(output, indent=2)
+    return json.dumps(_sanitize(output), indent=2, allow_nan=False)
 
 
 def format_explain_overview() -> str:
@@ -447,7 +460,12 @@ def format_dir_summary(
     return "\n".join(lines)
 
 
-def format_dir_json(file_data: list[dict], directory: str, stage: str = "master") -> str:
+def format_dir_json(
+    file_data: list[dict],
+    directory: str,
+    errors: list[tuple[str, str]] | None = None,
+    stage: str = "master",
+) -> str:
     """Format batch directory results as JSON."""
     files_output = []
     total_warns = 0
@@ -497,15 +515,20 @@ def format_dir_json(file_data: list[dict], directory: str, stage: str = "master"
 
         files_output.append(entry)
 
+    skipped = [{"file": name, "error": message} for name, message in (errors or [])]
+
     output = {
+        "schema_version": 1,
         "directory": directory,
         "stage": stage,
         "files": files_output,
+        "skipped": skipped,
         "summary": {
             "total_files": len(file_data),
+            "total_skipped": len(skipped),
             "total_warnings": total_warns,
             "total_failures": total_fails,
         },
     }
 
-    return json.dumps(output, indent=2)
+    return json.dumps(_sanitize(output), indent=2, allow_nan=False)

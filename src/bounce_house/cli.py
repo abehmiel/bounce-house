@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -39,6 +41,24 @@ from bounce_house.report import (
 from bounce_house.rules import evaluate_rules
 
 _STDERR_CONSOLE = Console(stderr=True)
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def _use_color() -> bool:
+    """NO_COLOR wins, then FORCE_COLOR, then TTY detection (https://no-color.org)."""
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    return sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
+
+
+def _print_report(text: str) -> None:
+    """Print human-facing report text, stripping ANSI codes when color is inappropriate."""
+    if not _use_color():
+        text = _ANSI_RE.sub("", text)
+    print(text)
 
 
 ALL_ANALYZERS = [
@@ -213,7 +233,7 @@ def _run_analysis(
             )
         )
     else:
-        print(
+        _print_report(
             format_terminal(
                 data["results"],
                 data["path"],
@@ -222,7 +242,7 @@ def _run_analysis(
                 stage=profile.name,
             )
         )
-    return 0
+    return _exit_code_for_results(data["results"])
 
 
 def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
@@ -293,10 +313,10 @@ def _run_dir(
         return 1
 
     if use_json:
-        print(format_dir_json(file_data, directory, stage=profile.name))
+        print(format_dir_json(file_data, directory, errors, stage=profile.name))
     else:
         for data in file_data:
-            print(
+            _print_report(
                 format_terminal(
                     data["results"],
                     data["path"],
@@ -305,27 +325,34 @@ def _run_dir(
                     stage=profile.name,
                 )
             )
-        print(format_dir_summary(file_data, directory, errors, stage=profile.name))
+        _print_report(format_dir_summary(file_data, directory, errors, stage=profile.name))
 
-    return _dir_exit_code(file_data)
+    return _batch_exit_code(file_data, errors)
+
+
+def _exit_code_for_results(results: list[AnalysisResult]) -> int:
+    """Exit code from assessments: 0 = all pass, 1 = warnings, 2 = failures."""
+    statuses = {a.status for r in results for a in r.assessments}
+    if "fail" in statuses:
+        return 2
+    if "warn" in statuses:
+        return 1
+    return 0
 
 
 def _dir_exit_code(file_data: list[dict]) -> int:
     """Determine exit code from batch results. 0=pass, 1=warn, 2=fail."""
-    has_fail = False
-    has_warn = False
-    for data in file_data:
-        for result in data["results"]:
-            for a in result.assessments:
-                if a.status == "fail":
-                    has_fail = True
-                elif a.status == "warn":
-                    has_warn = True
-    if has_fail:
-        return 2
-    if has_warn:
-        return 1
-    return 0
+    return max((_exit_code_for_results(data["results"]) for data in file_data), default=0)
+
+
+def _batch_exit_code(file_data: list[dict], errors: list[tuple[str, str]]) -> int:
+    """Batch exit code including skipped files.
+
+    Same 0/1/2 assessment ranking as `_dir_exit_code`, but any skipped
+    (unreadable/corrupt) file forces at least exit 1 — otherwise a batch that
+    silently drops inputs could report success and become a false green in CI.
+    """
+    return max(_dir_exit_code(file_data), 1 if errors else 0)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -362,18 +389,18 @@ def main(argv: list[str] | None = None) -> int:
 def _run_explain(topic: str | None, technical: bool) -> int:
     """Print metric documentation. Returns exit code."""
     if topic is None:
-        print(format_explain_overview())
+        _print_report(format_explain_overview())
         return 0
 
     kind, result = resolve_topic(topic)
 
     if kind == "module":
         assert isinstance(result, str)
-        print(format_explain_module(result, technical=technical))
+        _print_report(format_explain_module(result, technical=technical))
         return 0
     elif kind == "metric":
         assert isinstance(result, str)
-        print(format_explain_metric(result, technical=technical))
+        _print_report(format_explain_metric(result, technical=technical))
         return 0
     else:
         suggestions = result

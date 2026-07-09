@@ -1,6 +1,6 @@
 [project]
 name = "bounce-house"
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI tool for analyzing audio mixes — loudness, spectral balance, stereo imaging, and actionable advice"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,6 +25,7 @@ dependencies = [
     "scipy>=1.10",
     "pyloudnorm>=0.1",
     "librosa>=0.10",
+    "numba>=0.60",
     "rich>=13.0",
 ]
 

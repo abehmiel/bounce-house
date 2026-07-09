@@ -59,7 +59,7 @@ class TestParser:
 class TestFullAnalysis:
     def test_analyze_runs_successfully(self, tmp_wav):
         result = main(["analyze", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_analyze_json_output(self, tmp_wav, capsys):
         main(["analyze", str(tmp_wav), "--json"])
@@ -71,19 +71,19 @@ class TestFullAnalysis:
 
     def test_loudness_subcommand_runs(self, tmp_wav):
         result = main(["loudness", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_spectrum_subcommand_runs(self, tmp_wav):
         result = main(["spectrum", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_stereo_subcommand_runs(self, tmp_wav):
         result = main(["stereo", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_compare_runs(self, tmp_wav, tmp_reference_wav):
         result = main(["compare", str(tmp_wav), str(tmp_reference_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_compare_json_output(self, tmp_wav, tmp_reference_wav, capsys):
         main(["compare", str(tmp_wav), str(tmp_reference_wav), "--json"])
@@ -98,7 +98,7 @@ class TestFullAnalysis:
 
     def test_perceptual_subcommand_runs(self, tmp_wav):
         result = main(["perceptual", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_corrupt_file_returns_1(self, tmp_path, capsys):
         corrupt = tmp_path / "corrupt.wav"
@@ -110,7 +110,7 @@ class TestFullAnalysis:
 
     def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
         result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
 
 class TestAnalyzeFile:
@@ -173,7 +173,7 @@ class TestDiagnosticsIntegration:
     def test_analyze_still_returns_0(self, tmp_wav):
         """Diagnostics should not break the existing exit code behavior."""
         result = main(["analyze", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
 
 class TestDirParser:
@@ -249,13 +249,35 @@ class TestDirCommand:
         assert result in (0, 1, 2)
 
     def test_dir_with_corrupt_file_continues(self, tmp_wav_dir, capsys):
-        """A corrupt file should not stop batch processing."""
+        """A corrupt file should not stop batch processing, but must not exit 0."""
         corrupt = tmp_wav_dir / "zzz_corrupt.wav"
         corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
-        _result = main(["dir", str(tmp_wav_dir)])
+        result = main(["dir", str(tmp_wav_dir)])
         captured = capsys.readouterr()
         assert "track_a.wav" in captured.out
         assert "zzz_corrupt.wav" in captured.err
+        # A skipped file means part of the requested input was not analyzed —
+        # this must not report success (would be a false green in CI).
+        assert result >= 1
+
+    def test_dir_json_surfaces_skipped_files(self, tmp_wav_dir, capsys):
+        """dir --json must report skipped files so machine consumers see them."""
+        corrupt = tmp_wav_dir / "zzz_corrupt.wav"
+        corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
+        result = main(["dir", str(tmp_wav_dir), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert result >= 1
+        assert data["summary"]["total_skipped"] == 1
+        # total_files stays the count of successfully-analyzed files (backward compatible)
+        assert data["summary"]["total_files"] == 3
+        assert any(s["file"] == "zzz_corrupt.wav" for s in data["skipped"])
+
+    def test_dir_json_no_skipped_key_omits_when_clean(self, tmp_wav_dir, capsys):
+        """A clean batch has no skipped files: total_skipped is 0, skipped is empty."""
+        main(["dir", str(tmp_wav_dir), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert data["summary"]["total_skipped"] == 0
+        assert data["skipped"] == []
 
 
 class TestDiscoverWavFiles:
@@ -318,6 +340,51 @@ class TestDiscoverWavFiles:
 
         files = _discover_wav_files(str(tmp_path), recursive=False)
         assert files == []
+
+
+class TestBatchExitCode:
+    """The errors bump: any skipped file forces exit >= 1 without changing rank."""
+
+    def _all_pass(self):
+        return [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness", assessments=[Assessment("lufs", -14.0, "pass", "ok")]
+                    )
+                ]
+            }
+        ]
+
+    def test_all_pass_no_errors_is_0(self):
+        from bounce_house.cli import _batch_exit_code
+
+        assert _batch_exit_code(self._all_pass(), []) == 0
+
+    def test_all_pass_with_skipped_file_is_1(self):
+        from bounce_house.cli import _batch_exit_code
+
+        # This is the false-green case: every analyzed file passes, but one was skipped.
+        assert _batch_exit_code(self._all_pass(), [("corrupt.wav", "boom")]) == 1
+
+    def test_failure_still_trumps_skipped(self):
+        from bounce_house.cli import _batch_exit_code
+
+        fail = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness", assessments=[Assessment("lufs", -5.0, "fail", "loud")]
+                    )
+                ]
+            }
+        ]
+        assert _batch_exit_code(fail, [("corrupt.wav", "boom")]) == 2
+
+    def test_empty_batch_with_errors_is_1(self):
+        from bounce_house.cli import _batch_exit_code
+
+        assert _batch_exit_code([], [("corrupt.wav", "boom")]) == 1
 
 
 class TestDirExitCode:
@@ -458,12 +525,12 @@ class TestTuningIntegration:
     def test_tuning_subcommand_runs(self, tmp_wav):
         """The tuning subcommand should work standalone."""
         result = main(["tuning", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_analyze_includes_tuning(self, tmp_wav):
         """Full analyze should include tuning section."""
         result = main(["analyze", str(tmp_wav)])
-        assert result == 0
+        assert result in (0, 1, 2)
 
     def test_json_includes_tuning(self, tmp_wav, capsys):
         """JSON output should include tuning metrics."""
@@ -486,7 +553,7 @@ class TestMixModeIntegration:
     def test_analyze_mix_mode_runs(self, tmp_wav):
         """Full pipeline with --stage mix completes without error."""
         result = main(["analyze", str(tmp_wav), "--stage", "mix"])
-        assert result == 0 or result == 1  # may have warnings, should not error
+        assert result in (0, 1, 2)  # may have warnings/failures, should not error
 
     def test_analyze_mix_mode_json(self, tmp_wav, capsys):
         """JSON output in mix mode includes stage field."""
@@ -503,4 +570,67 @@ class TestMixModeIntegration:
     def test_loudness_mix_mode_runs(self, tmp_wav):
         """Single module with --stage mix works."""
         result = main(["loudness", str(tmp_wav), "--stage", "mix"])
-        assert result in (0, 1)
+        assert result in (0, 1, 2)
+
+
+class TestExitCodes:
+    def _expected_code(self, capsys) -> int:
+        data = json.loads(capsys.readouterr().out)
+        if data["summary"]["failures"]:
+            return 2
+        if data["summary"]["warnings"]:
+            return 1
+        return 0
+
+    def test_analyze_exit_code_matches_summary(self, tmp_wav, capsys):
+        code = main(["analyze", str(tmp_wav), "--json"])
+        assert code == self._expected_code(capsys)
+
+    def test_compare_exit_code_matches_summary(self, tmp_wav, tmp_reference_wav, capsys):
+        code = main(["compare", str(tmp_wav), str(tmp_reference_wav), "--json"])
+        assert code == self._expected_code(capsys)
+
+    def test_module_subcommand_exit_code_matches_summary(self, tmp_wav, capsys):
+        code = main(["loudness", str(tmp_wav), "--json"])
+        assert code == self._expected_code(capsys)
+
+    def test_exit_code_helper_ranks_worst_status(self):
+        from bounce_house.cli import _exit_code_for_results
+
+        def result_with(status):
+            return AnalysisResult(
+                module="loudness",
+                metrics={},
+                assessments=[Assessment(metric="m", value=0.0, status=status, message="")],
+            )
+
+        assert _exit_code_for_results([result_with("pass")]) == 0
+        assert _exit_code_for_results([result_with("pass"), result_with("warn")]) == 1
+        assert _exit_code_for_results([result_with("warn"), result_with("fail")]) == 2
+        assert _exit_code_for_results([]) == 0
+
+
+class TestColorHandling:
+    def test_piped_output_has_no_ansi(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" not in capsys.readouterr().out
+
+    def test_force_color_restores_ansi(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" in capsys.readouterr().out
+
+    def test_no_color_beats_force_color(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.setenv("NO_COLOR", "1")
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" not in capsys.readouterr().out
+
+    def test_explain_respects_color_rules(self, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        main(["explain"])
+        assert "\033[" not in capsys.readouterr().out

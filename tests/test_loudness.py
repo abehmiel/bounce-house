@@ -100,3 +100,29 @@ def test_plr_computed(tmp_wav):
     assert "plr_db" in result.metrics
     expected = result.metrics["true_peak_dbtp"] - result.metrics["integrated_lufs"]
     assert abs(result.metrics["plr_db"] - round(expected, 1)) < 0.01
+
+
+class TestShortFile:
+    def test_short_file_does_not_crash(self, tmp_short_wav):
+        audio = load_audio(tmp_short_wav)
+        result = LoudnessAnalyzer().analyze(audio)
+        assert result.metrics["integrated_lufs"] is None
+        assert result.metrics["loudness_range_lu"] is None
+        # Peak/RMS/crest don't need 400 ms of audio and must still be measured
+        assert result.metrics["sample_peak_dbfs"] is not None
+        assert result.metrics["crest_factor_db"] is not None
+        # PLR requires integrated LUFS, so it must be absent (not a TypeError)
+        assert "plr_db" not in result.metrics
+
+    def test_short_file_cli_analyze_does_not_crash(self, tmp_short_wav):
+        from bounce_house.cli import main
+
+        # Exit code may be 0/1/2 depending on assessments; anything but a traceback is fine
+        assert main(["analyze", str(tmp_short_wav)]) in (0, 1, 2)
+
+    def test_short_file_compare_does_not_crash(self, tmp_short_wav, tmp_wav):
+        audio = load_audio(tmp_short_wav)
+        reference = load_audio(tmp_wav)
+        result = LoudnessAnalyzer().compare(audio, reference)
+        assert result.metrics["integrated_lufs"] is None
+        assert "lufs_difference" not in result.metrics

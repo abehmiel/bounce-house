@@ -5,6 +5,23 @@ All notable changes to Bounce House will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - UNRELEASED
+
+### Fixed
+- `uvx` / `pip install git+…` installs failed on dependency resolution (numba floored to >=0.60)
+- Files shorter than 400 ms crashed loudness analysis; LUFS/LRA now report as unavailable
+- `--json` emitted non-standard `NaN`/`-Infinity`; non-finite values now serialize as `null`
+- `dir` returned exit `0` even when some files were skipped; a skipped file now forces exit ≥1 and appears in the JSON `skipped` array
+- README installation instructions did not work as written
+
+### Changed
+- `analyze`, `compare`, and single-module commands now exit 0/1/2 (pass/warn/fail) like `dir`
+- ANSI color is applied only on TTY stdout; `NO_COLOR` and `FORCE_COLOR` are respected
+- JSON output now carries `"schema_version": 1`
+
+### Added
+- Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)
+
 ## [0.1.0] - 2026-03-11
 
 ### Added

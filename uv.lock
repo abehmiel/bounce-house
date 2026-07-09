@@ -76,10 +76,11 @@ wheels = [
 
 [[package]]
 name = "bounce-house"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "librosa" },
+    { name = "numba" },
     { name = "numpy" },
     { name = "pyloudnorm" },
     { name = "rich" },
@@ -103,6 +104,7 @@ perceptual = [
 requires-dist = [
     { name = "librosa", specifier = ">=0.10" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "numba", specifier = ">=0.60" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0" },
     { name = "pyloudnorm", specifier = ">=0.1" },
