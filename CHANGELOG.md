@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON output now carries `"schema_version": 1`
 
 ### Added
-- PyPI releases via trusted publishing on tag push
+- Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)
 
 ## [0.1.0] - 2026-03-11
 

@@ -14,28 +14,24 @@ I made this while working on a new DIY aggressive guitar-and-synth music project
 
 ```bash
 # Run without installing (requires uv: https://docs.astral.sh/uv/)
-uvx bounce-house analyze mix.wav
+uvx --from git+https://github.com/abehmiel/bounce-house bounce-house analyze mix.wav
 
 # Or install it on your PATH
-uv tool install bounce-house
+uv tool install git+https://github.com/abehmiel/bounce-house
 bounce-house analyze mix.wav
 bh analyze mix.wav          # short alias
 ```
 
 ## Installation
 
-### As a standalone tool (recommended)
+> bounce-house is not yet published to PyPI, so install it from GitHub for now.
+> Once it's on PyPI, the shorter `uvx bounce-house` / `uv tool install bounce-house`
+> forms below will work too.
+
+### From GitHub (recommended)
 
 ```bash
-uv tool install bounce-house     # puts bounce-house/bh on your PATH
-# or: pipx install bounce-house
-# or: pip install bounce-house
-```
-
-### Latest development version from GitHub
-
-```bash
-uv tool install git+https://github.com/abehmiel/bounce-house
+uv tool install git+https://github.com/abehmiel/bounce-house   # puts bounce-house/bh on your PATH
 # or one-off: uvx --from git+https://github.com/abehmiel/bounce-house bounce-house analyze mix.wav
 ```
 
@@ -46,6 +42,15 @@ git clone https://github.com/abehmiel/bounce-house.git
 cd bounce-house
 uv sync
 uv run bounce-house analyze mix.wav   # uv sync does NOT put bounce-house on PATH; use `uv run`
+```
+
+### Once published to PyPI (not live yet)
+
+```bash
+uv tool install bounce-house     # puts bounce-house/bh on your PATH
+# or: pipx install bounce-house
+# or: pip install bounce-house
+# or run without installing: uvx bounce-house analyze mix.wav
 ```
 
 ### Optional dependencies
