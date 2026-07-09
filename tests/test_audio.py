@@ -77,6 +77,15 @@ class TestRealisticFixtures:
         assert -30.0 < loudness.metrics["integrated_lufs"] < -3.0
         assert 3.0 < loudness.metrics["crest_factor_db"] < 25.0
 
+    def test_mixlike_fixture_triggers_no_spectral_diagnostics(self, tmp_mixlike_wav):
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+
+        data = _analyze_file(str(tmp_mixlike_wav), profile=get_profile("master"))
+        fired = {d.pattern for d in data["diagnoses"]}
+        # Balanced pseudo-music must not read as muddy/harsh/thin (Stage 2 checklist)
+        assert not ({"muddy_mix", "harsh_mix", "thin_mix"} & fired), f"unexpected: {fired}"
+
     def test_pink_fixture_is_deterministic(self, tmp_pink_wav):
         from bounce_house.audio import load_audio
         from tests.conftest import _pink_noise

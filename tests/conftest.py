@@ -163,16 +163,19 @@ def tmp_mixlike_wav(tmp_path) -> Path:
             chord += np.sin(2 * np.pi * f0 * h * t + rng.uniform(0, 2 * np.pi)) / h
     chord *= 0.08
 
+    # lead melody in the mid band (500-2000 Hz) so the mix is not hollow there
+    lead = 0.15 * np.sin(2 * np.pi * 660 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 2 * t))
+
     hats = np.zeros(n)
     noise = rng.standard_normal(n)
     for start in np.arange(0.125, 8, 0.25):
         idx = int(start * sr)
         seg = np.arange(min(int(0.05 * sr), n - idx))
         hats[idx : idx + len(seg)] += noise[idx : idx + len(seg)] * np.exp(-seg / (0.01 * sr))
-    hats = 0.1 * np.diff(hats, prepend=0.0)  # differentiator ≈ crude high-pass
+    hats = 0.3 * np.diff(hats, prepend=0.0)  # differentiator ≈ crude high-pass
 
-    left = 0.8 * kick + bass + chord + hats
-    right = 0.8 * kick + bass + 0.9 * chord + 1.1 * hats
+    left = 0.8 * kick + bass + chord + lead + hats
+    right = 0.8 * kick + bass + 0.9 * chord + lead + 1.1 * hats
     stereo = np.column_stack([left, right])
     stereo *= 0.89 / np.max(np.abs(stereo))  # peak ≈ -1 dBFS
     path = tmp_path / "mixlike.wav"
