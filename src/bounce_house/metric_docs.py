@@ -495,32 +495,6 @@ _BALANCE = MetricDoc(
     aliases=["balance", "pan", "channel_balance", "lr_balance"],
 )
 
-_MIN_BLOCK_CORR = MetricDoc(
-    key="min_block_correlation",
-    name="Min Block Correlation",
-    module="stereo",
-    summary="Worst-case phase correlation in any 50ms window.",
-    explanation=(
-        "The minimum phase correlation found in any 50ms block of the signal. "
-        "Even if the overall correlation is healthy, individual sections with "
-        "negative correlation will cause audible phase cancellation in mono. "
-        "Identifies problematic stereo effects, flanger sweeps, or "
-        "polarity-inverted sections."
-    ),
-    good_range="Above 0.0",
-    genre_notes=(
-        "Brief dips below 0.0 during transitions or effects may be acceptable "
-        "in electronic music. Sustained negative correlation in any section "
-        "is problematic for all genres."
-    ),
-    technical=(
-        "Method: signal split into 50ms blocks (block_size = sr * 0.05). "
-        "Pearson correlation computed per block. Returns the minimum value. "
-        "Blocks with near-zero standard deviation are skipped."
-    ),
-    aliases=["min_corr", "min_block", "worst_correlation", "block_correlation"],
-)
-
 _LOW_BLOCK_CORR = MetricDoc(
     key="low_block_correlation",
     name="Block Correlation (5th Percentile)",
@@ -926,7 +900,6 @@ METRICS: dict[str, MetricDoc] = {
         _MS_RATIO,
         _STEREO_WIDTH,
         _BALANCE,
-        _MIN_BLOCK_CORR,
         _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
         _BRIGHTNESS,
@@ -972,7 +945,6 @@ MODULES: dict[str, list[str]] = {
         "ms_ratio_db",
         "stereo_width",
         "balance_db",
-        "min_block_correlation",
         "low_block_correlation",
         "frequency_width",
     ],

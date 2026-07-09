@@ -50,7 +50,6 @@ class TestMetricDocStructure:
             "ms_ratio_db",
             "stereo_width",
             "balance_db",
-            "min_block_correlation",
             "low_block_correlation",
             "frequency_width",
         }

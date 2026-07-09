@@ -39,7 +39,6 @@ class TestRuleEngine:
             module="stereo",
             metrics={
                 "phase_correlation": 0.1,
-                "min_block_correlation": -0.1,
                 "low_block_correlation": -0.1,
                 "balance_db": 0.2,
             },
@@ -53,7 +52,6 @@ class TestRuleEngine:
             module="stereo",
             metrics={
                 "phase_correlation": -0.5,
-                "min_block_correlation": -0.8,
                 "low_block_correlation": -0.8,
                 "balance_db": 0.1,
             },
@@ -169,3 +167,37 @@ class TestCorrelationThresholds:
         assert _correlation_status(0.1) == "warn"
         assert _correlation_status(0.05) == "fail"
         assert _correlation_status(-0.2) == "fail"
+
+
+class TestRangeRules:
+    def test_range_status_grades_correctly(self):
+        from bounce_house.profiles import _range_status
+
+        assert _range_status(0.2, (0.08, 0.45), (0.03, 0.55)) == "pass"
+        assert _range_status(0.5, (0.08, 0.45), (0.03, 0.55)) == "warn"
+        assert _range_status(0.01, (0.08, 0.45), (0.03, 0.55)) == "fail"
+
+    def test_stereo_width_and_ms_ratio_now_assessed(self, tmp_wav):
+        from bounce_house.analyzers.stereo import StereoAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.rules import evaluate_rules
+
+        result = StereoAnalyzer().analyze(load_audio(tmp_wav))
+        assessed = {a.metric for a in evaluate_rules(result)}
+        assert "stereo_width" in assessed
+        assert "ms_ratio_db" in assessed
+
+    def test_pitch_drift_std_assessed(self, tmp_wav):
+        from bounce_house.analyzers.tuning import TuningAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.rules import evaluate_rules
+
+        result = TuningAnalyzer().analyze(load_audio(tmp_wav))
+        assert "pitch_drift_std_cents" in {a.metric for a in evaluate_rules(result)}
+
+    def test_min_block_correlation_removed(self, tmp_wav):
+        from bounce_house.analyzers.stereo import StereoAnalyzer
+        from bounce_house.audio import load_audio
+
+        result = StereoAnalyzer().analyze(load_audio(tmp_wav))
+        assert "min_block_correlation" not in result.metrics

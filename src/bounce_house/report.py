@@ -56,7 +56,6 @@ _METRIC_NAMES = {
     "rolloff_hz": "Rolloff (85%)",
     "flatness": "Flatness",
     "phase_correlation": "Phase Correlation",
-    "min_block_correlation": "Min Block Corr",
     "low_block_correlation": "Block Corr (p5)",
     "mid_rms_db": "Mid RMS",
     "side_rms_db": "Side RMS",

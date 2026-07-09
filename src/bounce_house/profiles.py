@@ -152,6 +152,37 @@ def _dc_offset_status(value: float) -> str:
     return "fail"
 
 
+def _range_status(
+    value: float, pass_range: tuple[float, float], warn_range: tuple[float, float]
+) -> str:
+    """Grade a value against nested pass/warn ranges (inclusive)."""
+    if pass_range[0] <= value <= pass_range[1]:
+        return "pass"
+    if warn_range[0] <= value <= warn_range[1]:
+        return "warn"
+    return "fail"
+
+
+def _make_range_rule(
+    metric: str,
+    pass_range: tuple[float, float],
+    warn_range: tuple[float, float],
+    unit: str,
+    subject: str,
+) -> dict:
+    """Build a data-driven rule dict from pass/warn ranges."""
+    lo, hi = pass_range
+    return {
+        "metric": metric,
+        "evaluate": lambda v, p=pass_range, w=warn_range: _range_status(v, p, w),
+        "messages": {
+            "pass": f"{subject} is {{value:.2f}}{unit} — within the {lo}-{hi}{unit} target",
+            "warn": f"{subject} is {{value:.2f}}{unit} — outside the {lo}-{hi}{unit} target",
+            "fail": f"{subject} is {{value:.2f}}{unit} — far outside the {lo}-{hi}{unit} target",
+        },
+    }
+
+
 _MASTER_RULES: dict[str, list[dict]] = {
     "loudness": [
         {
@@ -278,6 +309,8 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 ),
             },
         },
+        _make_range_rule("stereo_width", (0.08, 0.45), (0.03, 0.55), "", "Stereo width"),
+        _make_range_rule("ms_ratio_db", (3.0, 12.0), (0.0, 18.0), " dB", "M/S ratio"),
     ],
     "tuning": [
         {
@@ -317,6 +350,9 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 ),
             },
         },
+        _make_range_rule(
+            "pitch_drift_std_cents", (0.0, 5.0), (0.0, 12.0), " cents", "Pitch drift (std)"
+        ),
     ],
     "qc": [
         {
