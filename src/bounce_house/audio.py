@@ -69,8 +69,9 @@ def load_audio(path: Path) -> AudioData:
     # Capture the delivered waveform (and its peak) before DC removal — this is
     # the true headroom ceiling for clipping/true-peak checks. DC is then
     # removed so RMS, crest, and spectral measurements run on the audio
-    # content, not the offset.
-    raw_samples = samples
+    # content, not the offset. Copy so raw_samples stays pre-DC even if DC
+    # removal is ever changed to an in-place subtraction.
+    raw_samples = samples.copy()
     raw_sample_peak = float(np.max(np.abs(samples)))
     dc_offset = samples.mean(axis=0)
     samples = samples - dc_offset
