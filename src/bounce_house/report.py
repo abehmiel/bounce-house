@@ -26,6 +26,7 @@ _MODULE_TITLES = {
     "loudness": "Loudness & Dynamics",
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
+    "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
     "qc": "Quality Control",
@@ -79,6 +80,10 @@ _METRIC_NAMES = {
     "longest_clip_run": "Longest Clip Run",
     "leading_silence_sec": "Leading Silence",
     "trailing_silence_sec": "Trailing Silence",
+    "mono_loss_db": "Mono Loss",
+    "worst_band": "Worst Band (mono)",
+    "worst_band_loss_db": "Worst Band Loss",
+    "low_end_reliance": "Low-End Reliance",
 }
 
 _SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
@@ -164,6 +169,7 @@ def format_terminal(
                 "reference_bands",
                 "frequency_width",
                 "band_ratios",
+                "band_mono_loss",
             ):
                 continue
             # Skip reference/diff keys in main display
@@ -204,6 +210,14 @@ def format_terminal(
             for band_name, corr in freq_width.items():
                 label = band_name.replace("_", "-")
                 lines.append(f"    {label:<18} {corr:+.3f}")
+
+        band_mono_loss = result.metrics.get("band_mono_loss")
+        if band_mono_loss:
+            lines.append("")
+            lines.append(f"  {_DIM}Mono loss by band:{_RESET}")
+            for band_name, loss in band_mono_loss.items():
+                label = band_name.replace("_", "-")
+                lines.append(f"    {label:<18} {loss:+.1f} dB")
 
     # Suggestions section
     warns = [a for a in all_assessments if a.status == "warn"]

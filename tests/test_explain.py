@@ -60,6 +60,11 @@ class TestMetricDocStructure:
         expected = {"brightness", "warmth", "timbral_brightness", "timbral_warmth"}
         assert set(perceptual_keys) == expected
 
+    def test_all_translation_metrics_documented(self):
+        translation_keys = MODULES["translation"]
+        expected = {"mono_loss_db", "band_mono_loss", "low_end_reliance"}
+        assert set(translation_keys) == expected
+
     def test_every_metric_key_exists_in_METRICS(self):
         for module, keys in MODULES.items():
             for key in keys:
@@ -93,6 +98,7 @@ class TestMetricDocStructure:
             "loudness",
             "spectrum",
             "stereo",
+            "translation",
             "perceptual",
             "tuning",
             "qc",

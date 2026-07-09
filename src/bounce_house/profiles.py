@@ -312,6 +312,10 @@ _MASTER_RULES: dict[str, list[dict]] = {
         _make_range_rule("stereo_width", (0.08, 0.45), (0.03, 0.55), "", "Stereo width"),
         _make_range_rule("ms_ratio_db", (3.0, 12.0), (0.0, 18.0), " dB", "M/S ratio"),
     ],
+    "translation": [
+        _make_range_rule("mono_loss_db", (-1.0, 0.5), (-3.0, 0.5), " dB", "Mono energy loss"),
+        _make_range_rule("low_end_reliance", (0.0, 0.35), (0.0, 0.50), "", "Low-end reliance"),
+    ],
     "tuning": [
         {
             "metric": "tuning_deviation_cents",
@@ -699,6 +703,7 @@ _MIX_RULES: dict[str, list[dict]] = {
         },
     ],
     "stereo": _MASTER_RULES["stereo"],  # identical
+    "translation": _MASTER_RULES["translation"],  # identical
     "tuning": _MASTER_RULES["tuning"],  # identical
     "qc": _MASTER_RULES["qc"],  # identical
 }

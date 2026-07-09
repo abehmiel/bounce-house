@@ -547,6 +547,73 @@ _FREQ_WIDTH = MetricDoc(
     aliases=["freq_width", "frequency_correlation", "band_width", "freq_stereo"],
 )
 
+# --- Translation metrics ---
+
+_MONO_LOSS = MetricDoc(
+    key="mono_loss_db",
+    name="Mono Loss",
+    module="translation",
+    summary="Energy lost when the mix is summed to mono.",
+    explanation=(
+        "Phones, Bluetooth speakers, club PA subs, and many cafe systems play "
+        "your mix in mono. This measures how much energy disappears when L and "
+        "R are summed: 0 dB means nothing lost, -3 dB is a hard-panned "
+        "element's pan-law drop, and larger losses mean anti-phase content is "
+        "cancelling itself."
+    ),
+    good_range="0 to -1 dB",
+    genre_notes=(
+        "Genre-independent. Wide electronic mixes tolerate up to ~-2 dB if a "
+        "mono listen confirms nothing vital vanishes."
+    ),
+    technical=(
+        "Method: 10*log10(mean(((L+R)/2)^2) / mean of per-channel power). "
+        "Per-band version uses STFT (nperseg=4096) over the same five bands "
+        "as the stereo analyzer."
+    ),
+    aliases=["mono_loss", "mono", "translation"],
+)
+
+_BAND_MONO_LOSS = MetricDoc(
+    key="band_mono_loss",
+    name="Mono Loss by Band",
+    module="translation",
+    summary="Where in the spectrum mono summing cancels energy.",
+    explanation=(
+        "Localizes mono cancellation: a big low-mid loss usually means "
+        "stereo-widened guitars/synths; sub-bass loss means stereo bass (see "
+        "the Wide Bass diagnostic)."
+    ),
+    good_range="Each band 0 to -1 dB",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: per-band mono-sum STFT power vs per-channel average power, "
+        "bands 20-120/120-500/500-2k/2k-8k/8k-20k Hz."
+    ),
+    aliases=["band_loss"],
+)
+
+_LOW_END_RELIANCE = MetricDoc(
+    key="low_end_reliance",
+    name="Low-End Reliance",
+    module="translation",
+    summary="Fraction of the mix's energy below 120 Hz.",
+    explanation=(
+        "Small speakers reproduce almost nothing below ~120 Hz. If most of "
+        "your energy lives down there, the mix collapses on a phone: quiet, "
+        "thin, and unbalanced. Give melodic low-end parts harmonics "
+        "(saturation) so they read on small speakers."
+    ),
+    good_range="0.05 to 0.35",
+    genre_notes=(
+        "Bass-heavy genres (hip-hop, EDM) run higher by design — check the "
+        "mix on a phone speaker anyway; saturation on the bass keeps it "
+        "audible."
+    ),
+    technical=("Method: STFT power below 120 Hz over total power, computed on the mono sum."),
+    aliases=["low_end", "sub_reliance", "small_speaker"],
+)
+
 # --- Perceptual metrics ---
 
 _BRIGHTNESS = MetricDoc(
@@ -902,6 +969,9 @@ METRICS: dict[str, MetricDoc] = {
         _BALANCE,
         _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
+        _MONO_LOSS,
+        _BAND_MONO_LOSS,
+        _LOW_END_RELIANCE,
         _BRIGHTNESS,
         _WARMTH,
         _TIMBRAL_BRIGHTNESS,
@@ -948,6 +1018,7 @@ MODULES: dict[str, list[str]] = {
         "low_block_correlation",
         "frequency_width",
     ],
+    "translation": ["mono_loss_db", "band_mono_loss", "low_end_reliance"],
     "perceptual": ["brightness", "warmth", "timbral_brightness", "timbral_warmth"],
     "tuning": [
         "tuning_deviation_cents",
@@ -971,6 +1042,7 @@ MODULE_TITLES: dict[str, str] = {
     "loudness": "Loudness & Dynamics",
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
+    "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
     "qc": "Quality Control",
