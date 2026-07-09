@@ -112,3 +112,19 @@ class TestDcRemoval:
         assert float(np.abs(np.mean(audio.samples))) < 1e-6  # mean removed
         assert audio.dc_offset is not None
         assert audio.dc_offset[0] == pytest.approx(0.3, abs=0.01)
+
+
+class TestFormatSupport:
+    def test_flac_loads(self, tmp_path):
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        stereo = np.column_stack([0.5 * np.sin(2 * np.pi * 440 * t)] * 2)
+        sf.write(str(tmp_path / "test.flac"), stereo, sr, format="FLAC")
+        audio = load_audio(tmp_path / "test.flac")
+        assert audio.channels == 2
+
+    def test_unsupported_extension_gives_conversion_hint(self, tmp_path):
+        fake = tmp_path / "song.mp3"
+        fake.write_bytes(b"not really audio")
+        with pytest.raises(ValueError, match="ffmpeg"):
+            load_audio(fake)

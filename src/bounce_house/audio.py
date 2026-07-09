@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({".wav", ".flac", ".aiff", ".aif", ".ogg"})
+
 
 @dataclass
 class AudioData:
@@ -43,6 +45,14 @@ def load_audio(path: Path) -> AudioData:
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {path}")
+
+    ext = path.suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        supported = ", ".join(sorted(e.lstrip(".") for e in SUPPORTED_EXTENSIONS))
+        raise ValueError(
+            f"Unsupported format '{ext}': {path}. Supported: {supported}. "
+            f"For mp3/m4a, convert first: ffmpeg -i input{ext} output.wav"
+        )
 
     try:
         samples, sample_rate = sf.read(str(path), dtype="float64")

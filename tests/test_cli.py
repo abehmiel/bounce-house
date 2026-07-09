@@ -2,6 +2,8 @@
 
 import json
 
+import numpy as np
+
 from bounce_house.analyzers.base import AnalysisResult, Assessment
 from bounce_house.cli import ALL_ANALYZERS, _analyze_file, _dir_exit_code, create_parser, main
 from bounce_house.profiles import get_profile
@@ -268,7 +270,7 @@ class TestDirCommand:
         result = main(["dir", str(tmp_path)])
         assert result == 1
         captured = capsys.readouterr()
-        assert "No .wav files" in captured.err
+        assert "No audio files" in captured.err
 
     def test_dir_nonexistent_path(self, capsys):
         result = main(["dir", "/nonexistent/path"])
@@ -321,13 +323,13 @@ class TestDiscoverWavFiles:
         import numpy as np
         import soundfile as sf
 
-        from bounce_house.cli import _discover_wav_files
+        from bounce_house.cli import _discover_audio_files
 
         sr = 44100
         for name in ["a.wav", "b.wav"]:
             sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
         (tmp_path / "notes.txt").write_text("hello")
-        files = _discover_wav_files(str(tmp_path), recursive=False)
+        files = _discover_audio_files(str(tmp_path), recursive=False)
         assert len(files) == 2
         assert all(f.suffix == ".wav" for f in files)
 
@@ -335,46 +337,46 @@ class TestDiscoverWavFiles:
         import numpy as np
         import soundfile as sf
 
-        from bounce_house.cli import _discover_wav_files
+        from bounce_house.cli import _discover_audio_files
 
         sr = 44100
         for name in ["c.wav", "a.wav", "b.wav"]:
             sf.write(str(tmp_path / name), np.zeros((sr, 2)), sr, subtype="PCM_16")
-        files = _discover_wav_files(str(tmp_path), recursive=False)
+        files = _discover_audio_files(str(tmp_path), recursive=False)
         assert [f.name for f in files] == ["a.wav", "b.wav", "c.wav"]
 
     def test_recursive_finds_subdirs(self, tmp_path):
         import numpy as np
         import soundfile as sf
 
-        from bounce_house.cli import _discover_wav_files
+        from bounce_house.cli import _discover_audio_files
 
         sr = 44100
         sub = tmp_path / "sub"
         sub.mkdir()
         sf.write(str(tmp_path / "top.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
         sf.write(str(sub / "nested.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
-        files = _discover_wav_files(str(tmp_path), recursive=True)
+        files = _discover_audio_files(str(tmp_path), recursive=True)
         assert len(files) == 2
 
     def test_no_recursive_skips_subdirs(self, tmp_path):
         import numpy as np
         import soundfile as sf
 
-        from bounce_house.cli import _discover_wav_files
+        from bounce_house.cli import _discover_audio_files
 
         sr = 44100
         sub = tmp_path / "sub"
         sub.mkdir()
         sf.write(str(tmp_path / "top.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
         sf.write(str(sub / "nested.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
-        files = _discover_wav_files(str(tmp_path), recursive=False)
+        files = _discover_audio_files(str(tmp_path), recursive=False)
         assert len(files) == 1
 
     def test_empty_dir_returns_empty(self, tmp_path):
-        from bounce_house.cli import _discover_wav_files
+        from bounce_house.cli import _discover_audio_files
 
-        files = _discover_wav_files(str(tmp_path), recursive=False)
+        files = _discover_audio_files(str(tmp_path), recursive=False)
         assert files == []
 
 
@@ -670,3 +672,20 @@ class TestColorHandling:
         monkeypatch.delenv("FORCE_COLOR", raising=False)
         main(["explain"])
         assert "\033[" not in capsys.readouterr().out
+
+
+class TestAudioDiscovery:
+    def test_dir_discovers_flac_and_aiff(self, tmp_path):
+        import soundfile as sf
+
+        from bounce_house.cli import _discover_audio_files
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        stereo = np.column_stack([0.5 * np.sin(2 * np.pi * 440 * t)] * 2)
+        sf.write(str(tmp_path / "a.wav"), stereo, sr, subtype="PCM_16")
+        sf.write(str(tmp_path / "b.flac"), stereo, sr, format="FLAC")
+        sf.write(str(tmp_path / "c.aiff"), stereo, sr, format="AIFF")
+        (tmp_path / "notes.txt").write_text("not audio")
+        files = _discover_audio_files(str(tmp_path), recursive=False)
+        assert [f.name for f in files] == ["a.wav", "b.flac", "c.aiff"]

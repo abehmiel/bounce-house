@@ -96,7 +96,7 @@ def create_parser() -> argparse.ArgumentParser:
     analyze_parser = subparsers.add_parser(
         "analyze", help="Run full analysis on a mix", parents=[stage_parent]
     )
-    analyze_parser.add_argument("file", help="Path to .wav file")
+    analyze_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
     analyze_parser.add_argument("--reference", help="Path to reference .wav file")
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -109,14 +109,14 @@ def create_parser() -> argparse.ArgumentParser:
         ("tuning", "Tuning and pitch stability analysis"),
     ]:
         sub = subparsers.add_parser(name, help=desc, parents=[stage_parent])
-        sub.add_argument("file", help="Path to .wav file")
+        sub.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
         sub.add_argument("--json", action="store_true", help="Output as JSON")
 
     # compare
     compare_parser = subparsers.add_parser(
         "compare", help="Compare mix against a reference track", parents=[stage_parent]
     )
-    compare_parser.add_argument("file", help="Path to .wav file")
+    compare_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
     compare_parser.add_argument("reference", help="Path to reference .wav file")
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -131,9 +131,9 @@ def create_parser() -> argparse.ArgumentParser:
 
     # dir — batch analysis
     dir_parser = subparsers.add_parser(
-        "dir", help="Analyze all .wav files in a directory", parents=[stage_parent]
+        "dir", help="Analyze all audio files in a directory", parents=[stage_parent]
     )
-    dir_parser.add_argument("path", help="Directory to scan for .wav files")
+    dir_parser.add_argument("path", help="Directory to scan for audio files")
     dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
     dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
     dir_parser.add_argument("--reference", help="Path to reference .wav file")
@@ -259,13 +259,13 @@ def _run_analysis(
     return _exit_code_for_results(data["results"])
 
 
-def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
-    """Find .wav files in a directory, sorted alphabetically."""
+def _discover_audio_files(directory: str, recursive: bool = False) -> list[Path]:
+    """Find supported audio files in a directory, sorted alphabetically."""
+    from bounce_house.audio import SUPPORTED_EXTENSIONS
+
     dir_path = Path(directory)
-    if recursive:  # noqa: SIM108
-        files = list(dir_path.rglob("*.wav"))
-    else:
-        files = list(dir_path.glob("*.wav"))
+    candidates = dir_path.rglob("*") if recursive else dir_path.glob("*")
+    files = [p for p in candidates if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS]
     return sorted(files, key=lambda p: p.name.lower())
 
 
@@ -276,15 +276,15 @@ def _run_dir(
     use_json: bool = False,
     profile=None,
 ) -> int:
-    """Analyze all .wav files in a directory. Returns exit code."""
+    """Analyze all audio files in a directory. Returns exit code."""
     dir_path = Path(directory)
     if not dir_path.is_dir():
         print(f"Error: Directory does not exist: {directory}", file=sys.stderr)
         return 1
 
-    wav_files = _discover_wav_files(directory, recursive)
+    wav_files = _discover_audio_files(directory, recursive)
     if not wav_files:
-        print(f"Error: No .wav files found in {directory}", file=sys.stderr)
+        print(f"Error: No audio files found in {directory}", file=sys.stderr)
         return 1
 
     file_data: list[dict] = []
