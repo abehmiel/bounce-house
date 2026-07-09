@@ -64,6 +64,8 @@ _METRIC_NAMES = {
     "balance_db": "Balance",
     "brightness": "Brightness",
     "warmth": "Warmth",
+    "timbral_brightness": "Brightness (timbral)",
+    "timbral_warmth": "Warmth (timbral)",
     "hardness": "Hardness",
     "roughness": "Roughness",
     "tuning_deviation_cents": "Tuning Deviation",
