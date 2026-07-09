@@ -121,7 +121,9 @@ def create_parser() -> argparse.ArgumentParser:
         "analyze", help="Run full analysis on a mix", parents=[stage_parent]
     )
     analyze_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
-    analyze_parser.add_argument("--reference", help="Path to reference .wav file")
+    analyze_parser.add_argument(
+        "--reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # Individual module subcommands
@@ -144,7 +146,9 @@ def create_parser() -> argparse.ArgumentParser:
         "compare", help="Compare mix against a reference track", parents=[stage_parent]
     )
     compare_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
-    compare_parser.add_argument("reference", help="Path to reference .wav file")
+    compare_parser.add_argument(
+        "reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # explain — metric documentation
@@ -163,7 +167,9 @@ def create_parser() -> argparse.ArgumentParser:
     dir_parser.add_argument("path", help="Directory to scan for audio files")
     dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
     dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
-    dir_parser.add_argument("--reference", help="Path to reference .wav file")
+    dir_parser.add_argument(
+        "--reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
 
     return parser
 
