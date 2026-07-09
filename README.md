@@ -13,36 +13,39 @@ I made this while working on a new DIY aggressive guitar-and-synth music project
 ## Quick Start
 
 ```bash
-# Install with uv (recommended)
-uv sync
+# Run without installing (requires uv: https://docs.astral.sh/uv/)
+uvx bounce-house analyze mix.wav
 
-# Analyze a mix
+# Or install it on your PATH
+uv tool install bounce-house
 bounce-house analyze mix.wav
-
-# Short alias
-bh analyze mix.wav
+bh analyze mix.wav          # short alias
 ```
 
 ## Installation
 
-### Using uv (recommended)
+### As a standalone tool (recommended)
 
 ```bash
+uv tool install bounce-house     # puts bounce-house/bh on your PATH
+# or: pipx install bounce-house
+# or: pip install bounce-house
+```
+
+### Latest development version from GitHub
+
+```bash
+uv tool install git+https://github.com/abehmiel/bounce-house
+# or one-off: uvx --from git+https://github.com/abehmiel/bounce-house bounce-house analyze mix.wav
+```
+
+### From a clone (for development)
+
+```bash
+git clone https://github.com/abehmiel/bounce-house.git
 cd bounce-house
 uv sync
-```
-
-### Using pip
-
-```bash
-cd bounce-house
-pip install .
-```
-
-### From GitHub (no clone needed)
-
-```bash
-pip install git+https://github.com/abehmiel/bounce-house.git
+uv run bounce-house analyze mix.wav   # uv sync does NOT put bounce-house on PATH; use `uv run`
 ```
 
 ### Optional dependencies
@@ -124,7 +127,7 @@ Each file gets a full report, followed by a summary table:
 ════════════════════════════════════════════════════════════
 ```
 
-Exit codes for CI/CD gating: `0` = all pass, `1` = warnings, `2` = failures. Corrupt files are logged to stderr without stopping the batch.
+Exit codes are shared by all analysis commands — see JSON output below. Corrupt files are logged to stderr without stopping the batch.
 
 ### Mix vs. Master Mode
 
@@ -153,69 +156,92 @@ bounce-house loudness mix.wav --json
 bounce-house dir ./masters/ --json
 ```
 
+JSON output includes a top-level `"schema_version": 1` field; non-finite measurements
+(e.g., LUFS of digital silence) are serialized as `null`.
+
+All analysis commands (`analyze`, `compare`, `dir`, and the single-module commands)
+exit with `0` = all checks passed, `1` = warnings (also used for unreadable-file
+errors), `2` = failures — so any of them can gate a CI pipeline.
+
+Color is used only when stdout is a terminal. Set `NO_COLOR=1` to force plain
+output, or `FORCE_COLOR=1` to keep colors when piping.
+
 ## Example Output
 
 ```
 ════════════════════════════════════════════════════════════
-  BOUNCE HOUSE — Mix Analysis Report
-  mix.wav (44100 Hz, stereo, 0:03)
+  BOUNCE HOUSE — Master Analysis Report
+  mix.wav (44100 Hz, stereo, 0:10)
 ════════════════════════════════════════════════════════════
 
 ── Loudness & Dynamics ────────────────────────────────────
-  Integrated LUFS        -7.8  WARN
-  Loudness Range         +2.6  FAIL
-  Sample Peak            -5.5
-  True Peak              -5.5  PASS
-  RMS Level              -10.0
-  Crest Factor           +4.6  FAIL
+  Integrated LUFS        -9.5  PASS
+  Loudness Range         +1.0  FAIL
+  Sample Peak            -3.1
+  True Peak              -3.1  PASS
+  RMS Level              -11.7
+  Crest Factor           +8.6  WARN
+  PLR                    +6.4  FAIL
 
 ── Spectral Balance ───────────────────────────────────────
-  Centroid               624 Hz
-  Bandwidth              774 Hz
-  Rolloff (85%)          891 Hz
-  Flatness               0.0000
+  Centroid               6,021.8 Hz
+  Bandwidth              6,995.6 Hz
+  Rolloff (85%)          15,729.8 Hz
+  Flatness               0.0066
 
-  sub-bass                    7.0 dB
-  bass                       40.9 dB
-  low-mid                    34.3 dB
-  mid                        22.2 dB
-  upper-mid                   9.4 dB
-  presence                  -30.7 dB
-  brilliance                -43.4 dB
+  sub-bass                    5.7 dB
+  bass                       38.9 dB
+  low-mid                    33.1 dB
+  mid                        21.6 dB
+  upper-mid                   0.3 dB
+  presence                    0.3 dB
+  brilliance                  0.3 dB
 
 ── Stereo & Phase ─────────────────────────────────────────
-  Phase Correlation      0.9813  PASS
-  Mid RMS                -10.1
-  Side RMS               -29.7
-  M/S Ratio              +19.6
-  Stereo Width           0.0950
-  Balance                +0.7  WARN
-  Min Block Corr         0.9813  PASS
+  Phase Correlation      0.9674  PASS
+  Mid RMS                -11.8
+  Side RMS               -29.5
+  M/S Ratio              +17.7
+  Stereo Width           0.1147
+  Balance                +0.3  PASS
+  Min Block Corr         0.9641
+  Block Corr (p5)        0.9659  PASS
 
   Frequency-dependent correlation:
-    sub-bass           +0.999
-    low-mid            +0.990
-    mid                +0.940
-    upper-mid          +0.697
-    air                +1.000
+    sub-bass           +1.000
+    low-mid            +0.954
+    mid                +0.980
+    upper-mid          -0.001
+    air                +0.003
 
 ── Perceptual Quality ─────────────────────────────────────
-  Brightness             0.0000
-  Warmth                 0.9184
+  Brightness             0.0086
+  Warmth                 0.2260
+
+── Tuning & Pitch ─────────────────────────────────────────
+  Tuning Deviation       -3.0 cents  PASS
+  Concert Pitch          439.2 Hz
+  Closest Standard       A=440
+  Pitch Drift (std)      +0.0 cents
+  Pitch Drift (range)    +0.0 cents  PASS
+  Pitch Trend            -0.0 cents
+  Chroma Sharpness       0.8700  PASS
 
 ── Suggestions ────────────────────────────────────────────
-  FAIL  Loudness range is 2.6 LU — extreme dynamics, review compressor/limiter settings
-  FAIL  Crest factor is 4.6 dB — heavily squashed, reduce limiting or compression
-  WARN  Integrated loudness is -7.8 LUFS — outside typical -16 to -8 range
-  WARN  Channel balance is +0.7 dB — slight imbalance, check panning
+  FAIL  Loudness range is 1.0 LU — extreme dynamics, review compressor/limiter settings
+  FAIL  PLR is 6.4 dB — heavily limited, consider backing off the limiter
+  WARN  Crest factor is 8.6 dB — transients may be over-compressed
 
 ── Mix Diagnostics ────────────────────────────────────────
-  FAIL  Over-Compressed — Over-compressed master; dynamics crushed
-        Reduce bus compressor ratio or increase threshold. Ease off the
-        limiter — aim for at least 8 dB crest factor.
+  WARN  Muddy Mix — Low-mid buildup causing muddy mix
+        Cut 2-4 dB in the 200-500 Hz range. Check for overlapping bass, guitar body, and vocal chest resonance. Use a high-pass filter on non-bass instruments to remove unnecessary low-mid energy.
+  WARN  Harsh / Brittle Mix — Excessive high-mid energy causing harshness
+        Check for resonant peaks in the 2-5 kHz range on vocals and guitars. Apply narrow-Q cuts of -2 to -4 dB at problem frequencies. Consider a de-esser on vocals targeting 5-8 kHz. Rather than boosting highs, try cutting low-mids to improve clarity.
+  WARN  Flat / Lifeless Mix — Mix lacks spatial depth and dynamic variation
+        Add spatial depth with reverb and delay. Vary dynamics between sections (quieter verses, louder choruses). Check panning — spreading instruments across the stereo field adds life. Even small stereo width differences between verse and chorus create perceived energy.
 
 ════════════════════════════════════════════════════════════
-  2 warning(s), 2 failure(s)
+  1 warning(s), 2 failure(s)
 ════════════════════════════════════════════════════════════
 ```
 
@@ -223,56 +249,58 @@ bounce-house dir ./masters/ --json
 
 Bounce House measures 26 metrics across 5 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
+Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
+
 ### Loudness & Dynamics
 
-| Metric | What it measures | Good range |
-|--------|-----------------|------------|
-| Integrated LUFS | Perceived loudness (ITU-R BS.1770) | -16 to -8 LUFS |
-| Loudness Range (LRA) | Dynamic spread, quiet to loud (EBU R128) | 5 to 15 LU |
-| True Peak | Maximum reconstructed waveform level | Below -1.0 dBTP |
-| Sample Peak | Maximum digital sample value | Below -0.3 dBFS |
-| RMS Level | Average signal power | -20 to -10 dB |
-| Crest Factor | Peak-to-RMS ratio (transient headroom) | 8 to 14 dB |
-| PLR | Peak-to-Loudness Ratio — over-compression indicator | Above 10 dB |
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Integrated LUFS | Perceived loudness (ITU-R BS.1770) | -16 to -8 LUFS | ✓ |
+| Loudness Range (LRA) | Dynamic spread, quiet to loud (EBU R128) | 5 to 15 LU | ✓ |
+| True Peak | Maximum reconstructed waveform level | Below -1.0 dBTP | ✓ |
+| Sample Peak | Maximum digital sample value | Below -0.3 dBFS | — |
+| RMS Level | Average signal power | -20 to -10 dB | — |
+| Crest Factor | Peak-to-RMS ratio (transient headroom) | 8 to 14 dB | ✓ |
+| PLR | Peak-to-Loudness Ratio — over-compression indicator | Above 10 dB | ✓ |
 
 ### Spectral Balance
 
-| Metric | What it measures | Good range |
-|--------|-----------------|------------|
-| Spectral Centroid | Center of mass — correlates with brightness | 1500 to 3500 Hz |
-| Spectral Bandwidth | Energy spread around centroid | 1500 to 4000 Hz |
-| Spectral Rolloff (85%) | Upper edge of significant energy | 4000 to 8000 Hz |
-| Spectral Flatness | Tonality vs. noise (0.0 = tone, 1.0 = noise) | 0.1 to 0.4 |
-| Band Energies | Energy in 7 frequency bands (sub-bass through brilliance) | Relative |
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Spectral Centroid | Center of mass — correlates with brightness | 1500 to 3500 Hz | — |
+| Spectral Bandwidth | Energy spread around centroid | 1500 to 4000 Hz | — |
+| Spectral Rolloff (85%) | Upper edge of significant energy | 4000 to 8000 Hz | — |
+| Spectral Flatness | Tonality vs. noise (0.0 = tone, 1.0 = noise) | 0.1 to 0.4 | — |
+| Band Energies | Energy in 7 frequency bands (sub-bass through brilliance) | Relative | — |
 
 ### Stereo & Phase
 
-| Metric | What it measures | Good range |
-|--------|-----------------|------------|
-| Phase Correlation | L/R correlation — mono compatibility | +0.3 to +0.7 |
-| Mid RMS | Center channel energy (M/S) | Relative |
-| Side RMS | Difference channel energy (M/S) | Relative |
-| M/S Ratio | Mid-to-side balance | 3 to 12 dB |
-| Stereo Width | Side-to-total energy ratio | 0.2 to 0.4 |
-| Channel Balance | L/R level difference | Within +/- 0.5 dB |
-| Min Block Correlation | Worst-case phase in any 50ms window | Above 0.0 |
-| Frequency-Dependent Correlation | Per-band stereo correlation | Sub-bass >0.9 |
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Phase Correlation | L/R correlation — mono compatibility | Above +0.3 | ✓ |
+| Mid RMS | Center channel energy (M/S) | Relative | — |
+| Side RMS | Difference channel energy (M/S) | Relative | — |
+| M/S Ratio | Mid-to-side balance | 3 to 12 dB | — |
+| Stereo Width | Side-to-total energy ratio | 0.2 to 0.4 | — |
+| Channel Balance | L/R level difference | Within +/- 0.5 dB | ✓ |
+| Block Correlation (p5) | Worst sustained phase in 50 ms windows (5th percentile) | Above 0.0 | ✓ |
+| Frequency-Dependent Correlation | Per-band stereo correlation | Sub-bass >0.9 | — |
 
 ### Perceptual Quality
 
-| Metric | What it measures | Good range |
-|--------|-----------------|------------|
-| Brightness | High-frequency energy ratio | 0.1 to 0.3 |
-| Warmth | Low-mid energy ratio | 0.1 to 0.3 |
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Brightness | High-frequency energy ratio | 0.1 to 0.3 | — |
+| Warmth | Low-mid energy ratio | 0.1 to 0.3 | — |
 
 ### Tuning & Pitch
 
-| Metric | What it measures | Good range |
-|--------|-----------------|------------|
-| Tuning Deviation | Offset from A440 concert pitch | Within ±8 cents |
-| Concert Pitch (A) | Estimated frequency of concert A | 435 to 445 Hz |
-| Pitch Drift Range | Total pitch excursion over time | Under 8 cents |
-| Chroma Sharpness | How well-defined pitch content is (0-1) | Above 0.6 |
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Tuning Deviation | Offset from A440 concert pitch | Within ±8 cents | ✓ |
+| Concert Pitch (A) | Estimated frequency of concert A | 435 to 445 Hz | — |
+| Pitch Drift Range | Total pitch excursion over time | Under 8 cents | ✓ |
+| Chroma Sharpness | How well-defined pitch content is (0-1) | Above 0.6 | ✓ |
 
 ## Mix Diagnostics
 
@@ -358,14 +386,14 @@ uv sync --extra dev
 # Set up pre-commit hooks
 uv run pre-commit install
 
-# Run tests
-uv run pytest
+# Run tests (the dev extra provides pytest)
+uv run --extra dev pytest
 
 # Run linter
-uv run ruff check src/ tests/
+uv run --extra dev ruff check src/ tests/
 
 # Run type checker
-uv run mypy src/
+uv run --extra dev mypy src/
 ```
 
 ### Project layout
