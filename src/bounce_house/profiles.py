@@ -280,7 +280,7 @@ _MASTER_PATTERNS: list[dict] = [
         "conditions": [
             ("spectrum.centroid_hz", "<", 1500),
             ("perceptual.warmth", ">", 0.25),
-            ("spectrum.bands.low_mid", ">", -12.0),
+            ("spectrum.band_ratios.low_mid_minus_mid", ">", 8.0),
             ("perceptual.brightness", "<", 0.08),
         ],
         "min_match": 2,
@@ -299,7 +299,7 @@ _MASTER_PATTERNS: list[dict] = [
             ("spectrum.centroid_hz", ">", 2800),
             ("perceptual.brightness", ">", 0.20),
             ("perceptual.warmth", "<", 0.10),
-            ("spectrum.bands.upper_mid", ">", -12.0),
+            ("spectrum.band_ratios.upper_mid_minus_mid", ">", 0.0),
         ],
         "min_match": 2,
         "severity": "warn",
@@ -316,8 +316,8 @@ _MASTER_PATTERNS: list[dict] = [
         "name": "Thin / Weak Mix",
         "conditions": [
             ("perceptual.warmth", "<", 0.08),
-            ("spectrum.bands.bass", "<", -28.0),
-            ("spectrum.bands.low_mid", "<", -25.0),
+            ("spectrum.band_ratios.bass_minus_mid", "<", 2.0),
+            ("spectrum.band_ratios.low_mid_minus_mid", "<", 2.0),
             ("spectrum.centroid_hz", ">", 2500),
         ],
         "min_match": 2,

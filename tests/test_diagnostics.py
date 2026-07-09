@@ -90,6 +90,13 @@ class TestEvaluateDiagnostics:
                 "presence": -22.0,
                 "brilliance": -25.0,
             },
+            # Pink-ish tilt: sits between all muddy/harsh/thin thresholds by default
+            # (see Task 5 brief — pink-noise theory values).
+            "band_ratios": {
+                "low_mid_minus_mid": 4.8,
+                "bass_minus_mid": 9.1,
+                "upper_mid_minus_mid": -4.3,
+            },
         }
         stereo = {
             "phase_correlation": 0.5,
@@ -162,6 +169,7 @@ class TestEvaluateDiagnostics:
         results = self._make_results(
             **{
                 "spectrum.centroid_hz": 1200.0,
+                "spectrum.band_ratios.low_mid_minus_mid": 10.0,
                 "perceptual.warmth": 0.30,
                 "perceptual.brightness": 0.05,
             }
@@ -174,6 +182,7 @@ class TestEvaluateDiagnostics:
         results = self._make_results(
             **{
                 "spectrum.centroid_hz": 3200.0,
+                "spectrum.band_ratios.upper_mid_minus_mid": 1.0,
                 "perceptual.brightness": 0.25,
                 "perceptual.warmth": 0.05,
             }
@@ -247,7 +256,8 @@ class TestEdgeCases:
         results = self._make_results(
             **{
                 "perceptual.warmth": 0.04,
-                "spectrum.bands.bass": -35.0,
+                "spectrum.band_ratios.bass_minus_mid": -2.0,
+                "spectrum.band_ratios.low_mid_minus_mid": 0.0,
                 "spectrum.centroid_hz": 3000.0,
             }
         )
@@ -415,3 +425,50 @@ class TestDiagnosticsWithProfile:
         results = self._make_results()
         diagnoses = evaluate_diagnostics(results)
         assert isinstance(diagnoses, list)
+
+
+class TestRatioBasedPatterns:
+    def _spectrum_result(self, ratios, centroid=1000.0):
+        return AnalysisResult(
+            module="spectrum",
+            metrics={"centroid_hz": centroid, "band_ratios": ratios},
+        )
+
+    def _perceptual_result(self, warmth=0.15, brightness=0.15):
+        return AnalysisResult(
+            module="perceptual", metrics={"warmth": warmth, "brightness": brightness}
+        )
+
+    def test_muddy_fires_on_lowmid_tilt(self):
+        results = [
+            self._spectrum_result(
+                {"low_mid_minus_mid": 10.0, "bass_minus_mid": 9.0, "upper_mid_minus_mid": -5.0},
+                centroid=1200.0,
+            ),
+            self._perceptual_result(warmth=0.30),
+        ]
+        names = [d.pattern for d in evaluate_diagnostics(results)]
+        assert "muddy_mix" in names
+
+    def test_muddy_does_not_fire_on_quiet_but_balanced_mix(self):
+        # Pink-ish tilt at any playback level must not read as mud
+        results = [
+            self._spectrum_result(
+                {"low_mid_minus_mid": 4.8, "bass_minus_mid": 9.1, "upper_mid_minus_mid": -4.3},
+                centroid=2000.0,
+            ),
+            self._perceptual_result(),
+        ]
+        names = [d.pattern for d in evaluate_diagnostics(results)]
+        assert "muddy_mix" not in names
+
+    def test_thin_fires_on_bass_starved_tilt(self):
+        results = [
+            self._spectrum_result(
+                {"low_mid_minus_mid": 0.0, "bass_minus_mid": -2.0, "upper_mid_minus_mid": 1.0},
+                centroid=3000.0,
+            ),
+            self._perceptual_result(warmth=0.05),
+        ]
+        names = [d.pattern for d in evaluate_diagnostics(results)]
+        assert "thin_mix" in names

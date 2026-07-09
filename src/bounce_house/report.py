@@ -147,7 +147,13 @@ def format_terminal(
         for key, value in result.metrics.items():
             if key in _SKIP_METRICS:
                 continue
-            if key in ("bands", "band_differences", "reference_bands", "frequency_width"):
+            if key in (
+                "bands",
+                "band_differences",
+                "reference_bands",
+                "frequency_width",
+                "band_ratios",
+            ):
                 continue
             # Skip reference/diff keys in main display
             if key.startswith("reference_") or key.endswith("_difference"):

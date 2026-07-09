@@ -69,6 +69,14 @@ class SpectrumAnalyzer(AnalyzerBase):
 
         metrics["bands"] = band_energies
 
+        # Tilt ratios between bands — level- and normalization-independent,
+        # used by the muddy/harsh/thin diagnostic patterns
+        metrics["band_ratios"] = {
+            "low_mid_minus_mid": round(band_energies["low_mid"] - band_energies["mid"], 1),
+            "bass_minus_mid": round(band_energies["bass"] - band_energies["mid"], 1),
+            "upper_mid_minus_mid": round(band_energies["upper_mid"] - band_energies["mid"], 1),
+        }
+
         return AnalysisResult(module=self.name, metrics=metrics)
 
     def compare(self, audio: AudioData, reference: AudioData) -> AnalysisResult:
