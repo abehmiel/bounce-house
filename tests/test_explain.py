@@ -26,6 +26,7 @@ class TestMetricDocStructure:
             "rms_db",
             "crest_factor_db",
             "plr_db",
+            "dc_offset_db",
         }
         assert set(loudness_keys) == expected
 

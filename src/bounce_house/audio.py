@@ -16,6 +16,7 @@ class AudioData:
     samples: np.ndarray  # shape: (num_samples, num_channels), float64
     sample_rate: int
     filepath: Path
+    dc_offset: np.ndarray | None = None  # per-channel mean removed at load, shape (channels,)
 
     @property
     def channels(self) -> int:
@@ -49,4 +50,7 @@ def load_audio(path: Path) -> AudioData:
     if samples.ndim == 1:
         samples = samples[:, np.newaxis]
 
-    return AudioData(samples=samples, sample_rate=sample_rate, filepath=path)
+    dc_offset = samples.mean(axis=0)
+    samples = samples - dc_offset
+
+    return AudioData(samples=samples, sample_rate=sample_rate, filepath=path, dc_offset=dc_offset)

@@ -202,6 +202,33 @@ _PLR = MetricDoc(
     aliases=["plr", "peak_to_loudness", "peak_loudness_ratio"],
 )
 
+_DC_OFFSET = MetricDoc(
+    key="dc_offset_db",
+    name="DC Offset",
+    module="loudness",
+    summary="Constant (0 Hz) offset detected and removed before analysis.",
+    explanation=(
+        "A DC offset is a constant shift of the whole waveform away from zero, "
+        "usually introduced by cheap audio interfaces or buggy plugins. It "
+        "wastes headroom, can cause clicks at edit points, and skews level "
+        "measurements. Bounce House removes it before analysis and reports "
+        "the removed amount here."
+    ),
+    good_range="Below -60 dBFS (effectively none)",
+    genre_notes=(
+        "Genre-independent. Anything above -40 dBFS is worth fixing at the "
+        "source: check plugin chains and enable your DAW's DC-removal filter "
+        "on the master bus."
+    ),
+    technical=(
+        "Method: per-channel arithmetic mean of all samples, subtracted at "
+        "load; reported as 20*log10(max(|mean|)) in dBFS. LUFS is unaffected "
+        "either way (K-weighting removes DC); RMS, crest factor, and band "
+        "energies are measured on the DC-free signal."
+    ),
+    aliases=["dc", "dc_offset", "offset"],
+)
+
 # --- Spectrum metrics ---
 
 _CENTROID = MetricDoc(
@@ -759,6 +786,7 @@ METRICS: dict[str, MetricDoc] = {
         _RMS,
         _CREST_FACTOR,
         _PLR,
+        _DC_OFFSET,
         _CENTROID,
         _BANDWIDTH,
         _ROLLOFF,
@@ -794,6 +822,7 @@ MODULES: dict[str, list[str]] = {
         "rms_db",
         "crest_factor_db",
         "plr_db",
+        "dc_offset_db",
     ],
     "spectrum": [
         "centroid_hz",

@@ -31,6 +31,7 @@ class LoudnessAnalyzer(AnalyzerBase):
             true_peak_available (bool): Whether ffmpeg-based true peak was measured.
             rms_db (float): RMS level in dB.
             crest_factor_db (float): Peak-to-RMS ratio in dB.
+            dc_offset_db (float): DC offset removed at load, in dBFS (informational).
         """
         metrics: dict = {}
 
@@ -73,6 +74,11 @@ class LoudnessAnalyzer(AnalyzerBase):
         rms_linear = float(np.sqrt(np.mean(audio.samples**2)))
         rms_db = 20.0 * np.log10(rms_linear + 1e-10)
         metrics["rms_db"] = round(float(rms_db), 1)
+
+        # DC offset removed at load — reported so the user knows their converter/plugin adds one
+        if audio.dc_offset is not None:
+            dc_db = 20.0 * np.log10(float(np.max(np.abs(audio.dc_offset))) + 1e-10)
+            metrics["dc_offset_db"] = round(float(dc_db), 1)
 
         # Crest factor: undefined for silence
         if peak_linear < 1e-8:

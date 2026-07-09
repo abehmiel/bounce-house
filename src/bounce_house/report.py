@@ -49,6 +49,7 @@ _METRIC_NAMES = {
     "rms_db": "RMS Level",
     "crest_factor_db": "Crest Factor",
     "plr_db": "PLR",
+    "dc_offset_db": "DC Offset",
     "centroid_hz": "Centroid",
     "bandwidth_hz": "Bandwidth",
     "rolloff_hz": "Rolloff (85%)",

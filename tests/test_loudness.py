@@ -1,5 +1,8 @@
 """Tests for loudness and dynamics analyzer."""
 
+import numpy as np
+import pytest
+
 from bounce_house.analyzers.loudness import LoudnessAnalyzer
 from bounce_house.audio import load_audio
 
@@ -126,3 +129,22 @@ class TestShortFile:
         result = LoudnessAnalyzer().compare(audio, reference)
         assert result.metrics["integrated_lufs"] is None
         assert "lufs_difference" not in result.metrics
+
+
+class TestDcOffsetMetric:
+    def test_dc_offset_metric_and_clean_rms(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "dc.wav"))
+        # DC no longer inflates RMS: 0.1 sine → RMS 0.0707 → -23.0 dB
+        assert result.metrics["rms_db"] == pytest.approx(-23.0, abs=0.5)
+        # The removed offset is reported: 20*log10(0.3) ≈ -10.5 dBFS
+        assert result.metrics["dc_offset_db"] == pytest.approx(-10.5, abs=0.3)
+
+    def test_clean_file_reports_negligible_dc(self, tmp_wav):
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
+        assert result.metrics["dc_offset_db"] < -60.0

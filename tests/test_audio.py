@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import soundfile as sf
 
 from bounce_house.audio import AudioData, load_audio
 
@@ -88,3 +89,17 @@ class TestRealisticFixtures:
         a = _pink_noise(4096, np.random.default_rng(42))
         b = _pink_noise(4096, np.random.default_rng(42))
         assert np.array_equal(a, b)
+
+
+class TestDcRemoval:
+    def test_dc_offset_removed_at_load(self, tmp_path):
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)  # 0.3 DC + small sine
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        from bounce_house.audio import load_audio
+
+        audio = load_audio(tmp_path / "dc.wav")
+        assert float(np.abs(np.mean(audio.samples))) < 1e-6  # mean removed
+        assert audio.dc_offset is not None
+        assert audio.dc_offset[0] == pytest.approx(0.3, abs=0.01)
