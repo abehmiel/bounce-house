@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -39,6 +41,24 @@ from bounce_house.report import (
 from bounce_house.rules import evaluate_rules
 
 _STDERR_CONSOLE = Console(stderr=True)
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def _use_color() -> bool:
+    """NO_COLOR wins, then FORCE_COLOR, then TTY detection (https://no-color.org)."""
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    return sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
+
+
+def _print_report(text: str) -> None:
+    """Print human-facing report text, stripping ANSI codes when color is inappropriate."""
+    if not _use_color():
+        text = _ANSI_RE.sub("", text)
+    print(text)
 
 
 ALL_ANALYZERS = [
@@ -213,7 +233,7 @@ def _run_analysis(
             )
         )
     else:
-        print(
+        _print_report(
             format_terminal(
                 data["results"],
                 data["path"],
@@ -296,7 +316,7 @@ def _run_dir(
         print(format_dir_json(file_data, directory, stage=profile.name))
     else:
         for data in file_data:
-            print(
+            _print_report(
                 format_terminal(
                     data["results"],
                     data["path"],
@@ -305,7 +325,7 @@ def _run_dir(
                     stage=profile.name,
                 )
             )
-        print(format_dir_summary(file_data, directory, errors, stage=profile.name))
+        _print_report(format_dir_summary(file_data, directory, errors, stage=profile.name))
 
     return _dir_exit_code(file_data)
 
@@ -359,18 +379,18 @@ def main(argv: list[str] | None = None) -> int:
 def _run_explain(topic: str | None, technical: bool) -> int:
     """Print metric documentation. Returns exit code."""
     if topic is None:
-        print(format_explain_overview())
+        _print_report(format_explain_overview())
         return 0
 
     kind, result = resolve_topic(topic)
 
     if kind == "module":
         assert isinstance(result, str)
-        print(format_explain_module(result, technical=technical))
+        _print_report(format_explain_module(result, technical=technical))
         return 0
     elif kind == "metric":
         assert isinstance(result, str)
-        print(format_explain_metric(result, technical=technical))
+        _print_report(format_explain_metric(result, technical=technical))
         return 0
     else:
         suggestions = result

@@ -541,3 +541,29 @@ class TestExitCodes:
         assert _exit_code_for_results([result_with("pass"), result_with("warn")]) == 1
         assert _exit_code_for_results([result_with("warn"), result_with("fail")]) == 2
         assert _exit_code_for_results([]) == 0
+
+
+class TestColorHandling:
+    def test_piped_output_has_no_ansi(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" not in capsys.readouterr().out
+
+    def test_force_color_restores_ansi(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" in capsys.readouterr().out
+
+    def test_no_color_beats_force_color(self, tmp_wav, capsys, monkeypatch):
+        monkeypatch.setenv("NO_COLOR", "1")
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        main(["analyze", str(tmp_wav)])
+        assert "\033[" not in capsys.readouterr().out
+
+    def test_explain_respects_color_rules(self, capsys, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("FORCE_COLOR", raising=False)
+        main(["explain"])
+        assert "\033[" not in capsys.readouterr().out
