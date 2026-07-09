@@ -4,6 +4,7 @@ import json
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
 from bounce_house.cli import ALL_ANALYZERS, _analyze_file, _dir_exit_code, create_parser, main
+from bounce_house.profiles import get_profile
 
 
 class TestParser:
@@ -111,6 +112,41 @@ class TestFullAnalysis:
     def test_analyze_with_reference(self, tmp_wav, tmp_reference_wav):
         result = main(["analyze", str(tmp_wav), "--reference", str(tmp_reference_wav)])
         assert result in (0, 1, 2)
+
+
+class TestReferenceSampleRateGuard:
+    def _write_wav(self, path, sr):
+        import numpy as np
+        import soundfile as sf
+
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        sine = 0.5 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(path), np.column_stack([sine, sine]), sr, subtype="FLOAT")
+
+    def test_mismatched_reference_rate_warns(self, tmp_path):
+        mix = tmp_path / "mix.wav"
+        ref = tmp_path / "ref.wav"
+        self._write_wav(mix, 44100)
+        self._write_wav(ref, 48000)  # different Nyquist → unreliable band comparison
+        data = _analyze_file(str(mix), reference_path=str(ref), profile=get_profile("master"))
+        assert data["warnings"]
+        assert any("sample rate" in w for w in data["warnings"])
+
+    def test_matched_reference_rate_does_not_warn(self, tmp_path):
+        mix = tmp_path / "mix.wav"
+        ref = tmp_path / "ref.wav"
+        self._write_wav(mix, 44100)
+        self._write_wav(ref, 44100)
+        data = _analyze_file(str(mix), reference_path=str(ref), profile=get_profile("master"))
+        assert data["warnings"] == []
+
+    def test_warning_reaches_stderr(self, tmp_path, capsys):
+        mix = tmp_path / "mix.wav"
+        ref = tmp_path / "ref.wav"
+        self._write_wav(mix, 44100)
+        self._write_wav(ref, 48000)
+        main(["analyze", str(mix), "--reference", str(ref)])
+        assert "Warning:" in capsys.readouterr().err
 
 
 class TestAnalyzeFile:
