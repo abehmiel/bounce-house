@@ -44,8 +44,12 @@ class LoudnessAnalyzer(AnalyzerBase):
 
         meter = pyln.Meter(audio.sample_rate)
 
-        integrated = meter.integrated_loudness(samples_for_lufs)
-        metrics["integrated_lufs"] = round(float(integrated), 1)
+        try:
+            integrated = meter.integrated_loudness(samples_for_lufs)
+            metrics["integrated_lufs"] = round(float(integrated), 1)
+        except ValueError:
+            # Shorter than the 400 ms BS.1770 gating block — LUFS undefined
+            metrics["integrated_lufs"] = None
 
         try:
             lra = meter.loudness_range(samples_for_lufs)
@@ -78,7 +82,7 @@ class LoudnessAnalyzer(AnalyzerBase):
             metrics["crest_factor_db"] = round(float(crest_db), 1)
 
         # PLR (Peak-to-Loudness Ratio): over-compression indicator
-        if metrics.get("true_peak_dbtp") is not None:
+        if metrics.get("true_peak_dbtp") is not None and metrics["integrated_lufs"] is not None:
             metrics["plr_db"] = round(
                 float(metrics["true_peak_dbtp"]) - float(metrics["integrated_lufs"]), 1
             )
@@ -97,8 +101,12 @@ class LoudnessAnalyzer(AnalyzerBase):
         result = self.analyze(audio)
         ref_result = self.analyze(reference)
 
-        lufs_diff = result.metrics["integrated_lufs"] - ref_result.metrics["integrated_lufs"]
-        result.metrics["lufs_difference"] = round(float(lufs_diff), 1)
+        if (
+            result.metrics["integrated_lufs"] is not None
+            and ref_result.metrics["integrated_lufs"] is not None
+        ):
+            lufs_diff = result.metrics["integrated_lufs"] - ref_result.metrics["integrated_lufs"]
+            result.metrics["lufs_difference"] = round(float(lufs_diff), 1)
         result.metrics["reference_lufs"] = ref_result.metrics["integrated_lufs"]
 
         if (
