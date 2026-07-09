@@ -80,12 +80,18 @@ class LoudnessAnalyzer(AnalyzerBase):
             dc_db = 20.0 * np.log10(float(np.max(np.abs(audio.dc_offset))) + 1e-10)
             metrics["dc_offset_db"] = round(float(dc_db), 1)
 
-        # Crest factor: undefined for silence
-        if peak_linear < 1e-8:
+        # Crest factor per channel (peak vs RMS of the SAME channel), averaged over
+        # active channels — pooling channels understates RMS for panned content and
+        # inflates crest by up to 3 dB. Undefined for silence.
+        per_channel_ms = np.mean(audio.samples**2, axis=0)
+        active = per_channel_ms > 1e-16
+        if peak_linear < 1e-8 or not np.any(active):
             metrics["crest_factor_db"] = None
         else:
-            crest_db = float(sample_peak_db) - float(rms_db)
-            metrics["crest_factor_db"] = round(float(crest_db), 1)
+            ch_peaks = np.max(np.abs(audio.samples), axis=0)[active]
+            ch_rms = np.sqrt(per_channel_ms[active])
+            crest_db = float(np.mean(20.0 * np.log10((ch_peaks + 1e-10) / (ch_rms + 1e-10))))
+            metrics["crest_factor_db"] = round(crest_db, 1)
 
         # PLR (Peak-to-Loudness Ratio): over-compression indicator
         if metrics.get("true_peak_dbtp") is not None and metrics["integrated_lufs"] is not None:

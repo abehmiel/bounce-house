@@ -148,3 +148,28 @@ class TestDcOffsetMetric:
     def test_clean_file_reports_negligible_dc(self, tmp_wav):
         result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
         assert result.metrics["dc_offset_db"] < -60.0
+
+
+class TestPerChannelCrest:
+    def test_hard_panned_sine_crest_is_3db(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        left = 0.5 * np.sin(2 * np.pi * 440 * t)
+        right = np.zeros_like(left)  # hard-panned: silent right channel
+        sf.write(str(tmp_path / "panned.wav"), np.column_stack([left, right]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "panned.wav"))
+        # A sine's true crest factor is 20*log10(sqrt(2)) = 3.01 dB; the silent
+        # channel must not dilute it (pooled math reported 6.0 dB here)
+        assert result.metrics["crest_factor_db"] == pytest.approx(3.0, abs=0.2)
+
+    def test_centered_sine_crest_unchanged(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        sine = 0.5 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "center.wav"), np.column_stack([sine, sine]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "center.wav"))
+        assert result.metrics["crest_factor_db"] == pytest.approx(3.0, abs=0.2)

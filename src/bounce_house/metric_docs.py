@@ -169,9 +169,11 @@ _CREST_FACTOR = MetricDoc(
         "squashed; above 18 dB is likely unprocessed."
     ),
     technical=(
-        "Method: sample_peak_dBFS - RMS_dB. Related to PSR (Peak-to-Short-term "
-        "Loudness Ratio) which uses a 3s BS.1770 window instead of RMS, and "
-        "PLR (Peak-to-Loudness Ratio) which uses integrated loudness."
+        "Method: per-channel 20*log10(peak/RMS), averaged over channels with "
+        "signal (silent channels excluded so hard-panned content is not "
+        "diluted). Related to PSR (Peak-to-Short-term Loudness Ratio) which "
+        "uses a 3s BS.1770 window instead of RMS, and PLR (Peak-to-Loudness "
+        "Ratio) which uses integrated loudness."
     ),
     aliases=["crest", "crest_factor", "dynamics", "transients"],
 )
