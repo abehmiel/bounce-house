@@ -28,6 +28,7 @@ _MODULE_TITLES = {
     "stereo": "Stereo & Phase",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "qc": "Quality Control",
 }
 
 # Metrics to hide from terminal display entirely
@@ -75,6 +76,10 @@ _METRIC_NAMES = {
     "pitch_drift_range_cents": "Pitch Drift (range)",
     "pitch_drift_trend_cents_per_min": "Pitch Trend",
     "chroma_sharpness": "Chroma Sharpness",
+    "clip_events": "Clip Events",
+    "longest_clip_run": "Longest Clip Run",
+    "leading_silence_sec": "Leading Silence",
+    "trailing_silence_sec": "Trailing Silence",
 }
 
 _SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)

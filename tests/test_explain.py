@@ -79,6 +79,16 @@ class TestMetricDocStructure:
         }
         assert set(tuning_keys) == expected
 
+    def test_all_qc_metrics_documented(self):
+        qc_keys = MODULES["qc"]
+        expected = {
+            "clip_events",
+            "longest_clip_run",
+            "leading_silence_sec",
+            "trailing_silence_sec",
+        }
+        assert set(qc_keys) == expected
+
     def test_modules_covers_all(self):
         assert set(MODULES.keys()) == {
             "loudness",
@@ -86,6 +96,7 @@ class TestMetricDocStructure:
             "stereo",
             "perceptual",
             "tuning",
+            "qc",
         }
 
 

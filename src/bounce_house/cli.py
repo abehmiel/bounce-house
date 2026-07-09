@@ -57,13 +57,21 @@ def _print_report(text: str) -> None:
 
 
 # Analyzer subcommand names — must not import the analyzers (librosa is slow to load)
-MODULE_COMMANDS: tuple[str, ...] = ("loudness", "spectrum", "stereo", "perceptual", "tuning")
+MODULE_COMMANDS: tuple[str, ...] = (
+    "loudness",
+    "spectrum",
+    "stereo",
+    "perceptual",
+    "tuning",
+    "qc",
+)
 
 
 def _load_analyzers() -> list:
     """Import and instantiate all analyzers. Deferred: pulls the librosa/numba chain."""
     from bounce_house.analyzers.loudness import LoudnessAnalyzer
     from bounce_house.analyzers.perceptual import PerceptualAnalyzer
+    from bounce_house.analyzers.qc import QcAnalyzer
     from bounce_house.analyzers.spectrum import SpectrumAnalyzer
     from bounce_house.analyzers.stereo import StereoAnalyzer
     from bounce_house.analyzers.tuning import TuningAnalyzer
@@ -74,6 +82,7 @@ def _load_analyzers() -> list:
         StereoAnalyzer(),
         PerceptualAnalyzer(),
         TuningAnalyzer(),
+        QcAnalyzer(),
     ]
 
 
@@ -112,6 +121,7 @@ def create_parser() -> argparse.ArgumentParser:
         "stereo": "Stereo imaging and phase analysis",
         "perceptual": "Perceptual quality analysis",
         "tuning": "Tuning and pitch stability analysis",
+        "qc": "Quality control — clipping and edge silence",
     }
     for name in MODULE_COMMANDS:
         sub = subparsers.add_parser(name, help=module_descriptions[name], parents=[stage_parent])

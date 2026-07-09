@@ -832,6 +832,76 @@ _PITCH_DRIFT_TREND = MetricDoc(
     aliases=["pitch_trend", "drift_trend"],
 )
 
+# --- QC metrics ---
+
+_CLIP_EVENTS = MetricDoc(
+    key="clip_events",
+    name="Clip Events",
+    module="qc",
+    summary="Count of hard-clipped sample runs (≥3 consecutive samples at −0.1 dBFS).",
+    explanation=(
+        "Runs of consecutive full-scale samples mean the waveform was flattened — "
+        "digital clipping. A handful may be an intentional loudness aesthetic; "
+        "dozens mean your limiter ceiling or export gain staging is wrong."
+    ),
+    good_range="0",
+    genre_notes=(
+        "Aggressive EDM/metal masters sometimes clip deliberately; anything else "
+        "should be clean. If you didn't choose clipping, fix it."
+    ),
+    technical=(
+        "Method: per channel, count runs of ≥3 consecutive samples with "
+        "|x| ≥ 10^(−0.1/20). DC offset is removed before detection."
+    ),
+    aliases=["clipping", "clip", "clipped"],
+)
+
+_LONGEST_CLIP_RUN = MetricDoc(
+    key="longest_clip_run",
+    name="Longest Clip Run",
+    module="qc",
+    summary="Length in samples of the longest flattened run.",
+    explanation=(
+        "Longer runs are more audible: 3–5 samples may pass unnoticed; runs "
+        "above ~20 samples (0.5 ms) produce audible distortion on transients."
+    ),
+    good_range="0 samples",
+    genre_notes="Genre-independent.",
+    technical="Method: max run length among detected clip runs across channels.",
+    aliases=["clip_run"],
+)
+
+_LEADING_SILENCE = MetricDoc(
+    key="leading_silence_sec",
+    name="Leading Silence",
+    module="qc",
+    summary="Silence before the audio starts.",
+    explanation=(
+        "Dead air at the start of a bounce usually means the export region "
+        "included empty bars. Streaming platforms and CD pressing both want "
+        "tight heads."
+    ),
+    good_range="0 to 0.5 s",
+    genre_notes="Genre-independent; leave heads tight and let the platform handle gaps.",
+    technical="Method: 10 ms peak-envelope windows below −60 dBFS from the start.",
+    aliases=["leading_silence", "head_silence"],
+)
+
+_TRAILING_SILENCE = MetricDoc(
+    key="trailing_silence_sec",
+    name="Trailing Silence",
+    module="qc",
+    summary="Silence after the audio ends.",
+    explanation=(
+        "A long silent tail inflates track length and can be an export-region "
+        "mistake. Reverb tails that decay below −60 dBFS count as silence here."
+    ),
+    good_range="0 to 5 s",
+    genre_notes="Genre-independent.",
+    technical="Method: 10 ms peak-envelope windows below −60 dBFS from the end.",
+    aliases=["trailing_silence", "tail_silence"],
+)
+
 # --- Registry ---
 
 METRICS: dict[str, MetricDoc] = {
@@ -870,6 +940,10 @@ METRICS: dict[str, MetricDoc] = {
         _CLOSEST_STANDARD,
         _PITCH_DRIFT_STD,
         _PITCH_DRIFT_TREND,
+        _CLIP_EVENTS,
+        _LONGEST_CLIP_RUN,
+        _LEADING_SILENCE,
+        _TRAILING_SILENCE,
     ]
 }
 
@@ -912,6 +986,12 @@ MODULES: dict[str, list[str]] = {
         "pitch_drift_trend_cents_per_min",
         "chroma_sharpness",
     ],
+    "qc": [
+        "clip_events",
+        "longest_clip_run",
+        "leading_silence_sec",
+        "trailing_silence_sec",
+    ],
 }
 
 # Module display names (shared with report.py)
@@ -921,6 +1001,7 @@ MODULE_TITLES: dict[str, str] = {
     "stereo": "Stereo & Phase",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "qc": "Quality Control",
 }
 
 

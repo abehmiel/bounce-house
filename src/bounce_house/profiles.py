@@ -120,6 +120,38 @@ def _chroma_sharpness_status(value: float) -> str:
     return "fail"
 
 
+def _qc_clip_status(value: float) -> str:
+    if value == 0:
+        return "pass"
+    if value <= 20:
+        return "warn"
+    return "fail"
+
+
+def _qc_leading_silence_status(value: float) -> str:
+    if value <= 0.5:
+        return "pass"
+    if value <= 5.0:
+        return "warn"
+    return "fail"
+
+
+def _qc_trailing_silence_status(value: float) -> str:
+    if value <= 5.0:
+        return "pass"
+    if value <= 30.0:
+        return "warn"
+    return "fail"
+
+
+def _dc_offset_status(value: float) -> str:
+    if value < -40.0:
+        return "pass"
+    if value <= -20.0:
+        return "warn"
+    return "fail"
+
+
 _MASTER_RULES: dict[str, list[dict]] = {
     "loudness": [
         {
@@ -186,6 +218,21 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "pass": "Peak-to-Loudness Ratio is {value:.1f} dB — healthy headroom",
                 "warn": "PLR is {value:.1f} dB — approaching over-limited territory",
                 "fail": "PLR is {value:.1f} dB — heavily limited, consider backing off the limiter",
+            },
+        },
+        {
+            "metric": "dc_offset_db",
+            "evaluate": _dc_offset_status,
+            "messages": {
+                "pass": "DC offset negligible ({value:.1f} dBFS)",
+                "warn": (
+                    "DC offset of {value:.1f} dBFS removed before analysis"
+                    " — check plugin chains and interface"
+                ),
+                "fail": (
+                    "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
+                    " is broken, fix at the source"
+                ),
             },
         },
     ],
@@ -268,6 +315,41 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "fail": (
                     "Chroma definition: {value:.2f} — very diffuse pitch content, check intonation"
                 ),
+            },
+        },
+    ],
+    "qc": [
+        {
+            "metric": "clip_events",
+            "evaluate": _qc_clip_status,
+            "messages": {
+                "pass": "No hard clipping detected",
+                "warn": (
+                    "{value:.0f} clipped run(s) detected — fine if intentional,"
+                    " otherwise lower your limiter ceiling"
+                ),
+                "fail": (
+                    "{value:.0f} clipped runs detected — audible distortion likely,"
+                    " check export gain staging and limiter ceiling"
+                ),
+            },
+        },
+        {
+            "metric": "leading_silence_sec",
+            "evaluate": _qc_leading_silence_status,
+            "messages": {
+                "pass": "Head is tight ({value:.2f} s of leading silence)",
+                "warn": "{value:.2f} s of leading silence — trim the export region start",
+                "fail": "{value:.2f} s of leading silence — export region includes empty bars",
+            },
+        },
+        {
+            "metric": "trailing_silence_sec",
+            "evaluate": _qc_trailing_silence_status,
+            "messages": {
+                "pass": "Tail is clean ({value:.2f} s of trailing silence)",
+                "warn": "{value:.2f} s of trailing silence — check the export region end",
+                "fail": "{value:.2f} s of trailing silence — export region far too long",
             },
         },
     ],
@@ -564,9 +646,25 @@ _MIX_RULES: dict[str, list[dict]] = {
                 ),
             },
         },
+        {
+            "metric": "dc_offset_db",
+            "evaluate": _dc_offset_status,
+            "messages": {
+                "pass": "DC offset negligible ({value:.1f} dBFS)",
+                "warn": (
+                    "DC offset of {value:.1f} dBFS removed before analysis"
+                    " — check plugin chains and interface"
+                ),
+                "fail": (
+                    "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
+                    " is broken, fix at the source"
+                ),
+            },
+        },
     ],
     "stereo": _MASTER_RULES["stereo"],  # identical
     "tuning": _MASTER_RULES["tuning"],  # identical
+    "qc": _MASTER_RULES["qc"],  # identical
 }
 
 _MIX_PATTERNS: list[dict] = [p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"]
