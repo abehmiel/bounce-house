@@ -472,3 +472,19 @@ class TestRatioBasedPatterns:
         ]
         names = [d.pattern for d in evaluate_diagnostics(results)]
         assert "thin_mix" in names
+
+
+class TestDetunedFlat:
+    def test_detuned_fires_for_flat_tuning(self):
+        results = [
+            AnalysisResult(
+                module="tuning",
+                metrics={
+                    "tuning_deviation_cents": -20.0,  # flat — the common direction
+                    "pitch_drift_range_cents": 18.0,
+                    "chroma_sharpness": 0.5,
+                },
+            )
+        ]
+        names = [d.pattern for d in evaluate_diagnostics(results)]
+        assert "detuned_mix" in names

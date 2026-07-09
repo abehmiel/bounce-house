@@ -404,7 +404,7 @@ _MASTER_PATTERNS: list[dict] = [
         "pattern": "detuned_mix",
         "name": "Detuned Mix",
         "conditions": [
-            ("tuning.tuning_deviation_cents", ">", 15),
+            ("tuning.tuning_deviation_cents", "abs>", 15),
             ("tuning.pitch_drift_range_cents", ">", 15),
             ("tuning.chroma_sharpness", "<", 0.25),
         ],
