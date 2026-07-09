@@ -337,11 +337,11 @@ _BANDS = MetricDoc(
     module="spectrum",
     summary="Energy distribution across 7 mixing-relevant frequency bands.",
     explanation=(
-        "Measures average energy in sub-bass (20-60 Hz), bass (60-250 Hz), "
-        "low-mid (250-500 Hz), mid (500-2000 Hz), upper-mid (2000-4000 Hz), "
-        "presence (4000-6000 Hz), and brilliance (6000-20000 Hz). Reveals "
-        "where your mix is heavy or thin relative to a balanced spectrum "
-        "or reference track."
+        "Energy in seven mixing-relevant frequency bands, each expressed in "
+        "dB relative to the file's own broadband average — positive means "
+        "the band sits above the mix's average spectral density, negative "
+        "below. Because values are relative, they are comparable between "
+        "files regardless of overall level."
     ),
     good_range="Relative — compare against reference tracks in your genre",
     genre_notes=(
@@ -351,10 +351,10 @@ _BANDS = MetricDoc(
         "band-by-band comparison."
     ),
     technical=(
-        "Method: STFT with n_fft=4096, then mean power in each band "
-        "converted to dB. Bands: sub-bass (20-60 Hz), bass (60-250 Hz), "
-        "low-mid (250-500 Hz), mid (500-2 kHz), upper-mid (2-4 kHz), "
-        "presence (4-6 kHz), brilliance (6-20 kHz)."
+        "Method: mean STFT power (n_fft=4096) per band, in dB relative to "
+        "the mean power density across 20 Hz-20 kHz of the same file. Bands: "
+        "sub-bass 20-60, bass 60-250, low-mid 250-500, mid 500-2000, "
+        "upper-mid 2000-4000, presence 4000-6000, brilliance 6000-20000 Hz."
     ),
     aliases=["bands", "band_energies", "frequency_bands", "eq", "spectrum_bands"],
 )

@@ -75,6 +75,8 @@ _METRIC_NAMES = {
     "chroma_sharpness": "Chroma Sharpness",
 }
 
+_SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
+
 
 def _sanitize(obj: Any) -> Any:
     """Replace non-finite floats (NaN, ±Infinity) with None for strict RFC 8259 JSON."""
@@ -176,7 +178,7 @@ def format_terminal(
                     if abs(diff) > 3.0:
                         color = _YELLOW if abs(diff) <= 6.0 else _RED
                         diff_str = f"  {color}{diff:+.1f} dB vs ref{_RESET}"
-                lines.append(f"  {label:<22} {energy:>8.1f} dB{diff_str}")
+                lines.append(f"  {label:<22} {energy:>8.1f} dB rel{diff_str}")
 
         # Frequency-dependent stereo width
         if freq_width:
@@ -238,7 +240,7 @@ def format_json(
         all assessments, and a summary of warnings/failures.
     """
     output: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": _SCHEMA_VERSION,
         "file": filename,
         "format": file_info,
         "stage": stage,
@@ -519,7 +521,7 @@ def format_dir_json(
     skipped = [{"file": name, "error": message} for name, message in (errors or [])]
 
     output = {
-        "schema_version": 1,
+        "schema_version": _SCHEMA_VERSION,
         "directory": directory,
         "stage": stage,
         "files": files_output,

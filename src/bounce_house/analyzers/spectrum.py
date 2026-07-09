@@ -52,11 +52,17 @@ class SpectrumAnalyzer(AnalyzerBase):
         S = np.abs(librosa.stft(y, n_fft=n_fft)) ** 2
         freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
 
+        # Band energies relative to the file's own broadband density — this makes
+        # values comparable across files and levels ("+6 dB above the mix average"),
+        # and makes reference band differences independent of overall loudness.
+        audible = (freqs >= 20) & (freqs < 20000)
+        broadband_db = float(10 * np.log10(np.mean(S[audible, :]) + 1e-10))
+
         band_energies = {}
         for band_name, lo, hi in BANDS:
             mask = (freqs >= lo) & (freqs < hi)
             if np.any(mask):
-                energy_db = float(10 * np.log10(np.mean(S[mask, :]) + 1e-10))
+                energy_db = float(10 * np.log10(np.mean(S[mask, :]) + 1e-10)) - broadband_db
             else:
                 energy_db = -100.0
             band_energies[band_name] = round(energy_db, 1)
