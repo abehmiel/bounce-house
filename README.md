@@ -6,7 +6,7 @@
 
 A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House runs 26 metrics across loudness, spectral balance, stereo imaging, tuning, and perceptual quality. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
+Bounce House runs 30+ metrics across loudness, spectral balance, stereo imaging, tuning, and perceptual quality. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
 
@@ -80,7 +80,7 @@ Run a single analysis module when you only care about one domain:
 bounce-house loudness mix.wav    # EBU R128 loudness, dynamics, crest factor
 bounce-house spectrum mix.wav    # Spectral centroid, bandwidth, band energies
 bounce-house stereo mix.wav      # Phase correlation, M/S ratio, stereo width
-bounce-house perceptual mix.wav  # Brightness, warmth (proxy or timbral_models)
+bounce-house perceptual mix.wav  # Brightness, warmth (+ timbral_models scores if installed)
 bounce-house tuning mix.wav      # Tuning deviation, pitch drift, chroma sharpness
 ```
 
@@ -161,7 +161,7 @@ bounce-house loudness mix.wav --json
 bounce-house dir ./masters/ --json
 ```
 
-JSON output includes a top-level `"schema_version": 1` field; non-finite measurements
+JSON output includes a top-level `"schema_version": 2` field; non-finite measurements
 (e.g., LUFS of digital silence) are serialized as `null`.
 
 All analysis commands (`analyze`, `compare`, `dir`, and the single-module commands)
@@ -182,83 +182,83 @@ output, or `FORCE_COLOR=1` to keep colors when piping.
 ```
 ════════════════════════════════════════════════════════════
   BOUNCE HOUSE — Master Analysis Report
-  mix.wav (44100 Hz, stereo, 0:10)
+  mix.wav (44100 Hz, stereo, 0:08)
 ════════════════════════════════════════════════════════════
 
 ── Loudness & Dynamics ────────────────────────────────────
-  Integrated LUFS        -9.5  PASS
-  Loudness Range         +1.0  FAIL
-  Sample Peak            -3.1
-  True Peak              -3.1  PASS
-  RMS Level              -11.7
-  Crest Factor           +8.6  WARN
-  PLR                    +6.4  FAIL
+  Integrated LUFS        -15.6  PASS
+  Loudness Range         +1.5  FAIL
+  Sample Peak            -1.0
+  True Peak              -0.7  WARN
+  RMS Level              -17.4
+  DC Offset              -53.1
+  Crest Factor           +16.1  PASS
+  PLR                    +14.9  PASS
 
 ── Spectral Balance ───────────────────────────────────────
-  Centroid               6,021.8 Hz
-  Bandwidth              6,995.6 Hz
-  Rolloff (85%)          15,729.8 Hz
-  Flatness               0.0066
+  Centroid               2,613.5 Hz
+  Bandwidth              2,465.6 Hz
+  Rolloff (85%)          5,091.9 Hz
+  Flatness               0.0179
 
-  sub-bass                    5.7 dB
-  bass                       38.9 dB
-  low-mid                    33.1 dB
-  mid                        21.6 dB
-  upper-mid                   0.3 dB
-  presence                    0.3 dB
-  brilliance                  0.3 dB
+  sub-bass                   16.0 dB rel
+  bass                       18.4 dB rel
+  low-mid                     8.4 dB rel
+  mid                          1.8 dB rel
+  upper-mid                 -23.4 dB rel
+  presence                  -19.2 dB rel
+  brilliance                -12.3 dB rel
 
 ── Stereo & Phase ─────────────────────────────────────────
-  Phase Correlation      0.9674  PASS
-  Mid RMS                -11.8
-  Side RMS               -29.5
-  M/S Ratio              +17.7
-  Stereo Width           0.1147
-  Balance                +0.3  PASS
-  Min Block Corr         0.9641
-  Block Corr (p5)        0.9659  PASS
+  Phase Correlation      0.9989  PASS
+  Mid RMS                -17.4
+  Side RMS               -49.8
+  M/S Ratio              +32.4
+  Stereo Width           0.0234
+  Balance                +0.1  PASS
+  Min Block Corr         0.9978
+  Block Corr (p5)        0.9980  PASS
 
   Frequency-dependent correlation:
     sub-bass           +1.000
-    low-mid            +0.954
-    mid                +0.980
-    upper-mid          -0.001
-    air                +0.003
+    low-mid            +1.000
+    mid                +0.999
+    upper-mid          +1.000
+    air                +1.000
 
 ── Perceptual Quality ─────────────────────────────────────
-  Brightness             0.0086
-  Warmth                 0.2260
+  Brightness             0.0521
+  Warmth                 0.1228
 
 ── Tuning & Pitch ─────────────────────────────────────────
-  Tuning Deviation       -3.0 cents  PASS
-  Concert Pitch          439.2 Hz
-  Closest Standard       A=440
-  Pitch Drift (std)      +0.0 cents
-  Pitch Drift (range)    +0.0 cents  PASS
-  Pitch Trend            -0.0 cents
-  Chroma Sharpness       0.8700  PASS
+  Tuning Deviation       +4.0 cents  PASS
+  Concert Pitch          441.0 Hz
+  Closest Standard       A=441
+  Pitch Drift (std)      +4.5 cents
+  Pitch Drift (range)    +9.0 cents  WARN
+  Pitch Trend            +96.4 cents
+  Chroma Sharpness       0.3050  WARN
 
 ── Suggestions ────────────────────────────────────────────
-  FAIL  Loudness range is 1.0 LU — extreme dynamics, review compressor/limiter settings
-  FAIL  PLR is 6.4 dB — heavily limited, consider backing off the limiter
-  WARN  Crest factor is 8.6 dB — transients may be over-compressed
+  FAIL  Loudness range is 1.5 LU — extreme dynamics, review compressor/limiter settings
+  WARN  True peak is -0.7 dBTP — close to clipping, consider lowering limiter ceiling to -1.0 dBTP
+  WARN  Pitch stability: 9.0 cents range — moderate drift, consider pitch correction
+  WARN  Chroma definition: 0.30 — somewhat diffuse pitch content
 
 ── Mix Diagnostics ────────────────────────────────────────
-  WARN  Muddy Mix — Low-mid buildup causing muddy mix
-        Cut 2-4 dB in the 200-500 Hz range. Check for overlapping bass, guitar body, and vocal chest resonance. Use a high-pass filter on non-bass instruments to remove unnecessary low-mid energy.
-  WARN  Harsh / Brittle Mix — Excessive high-mid energy causing harshness
-        Check for resonant peaks in the 2-5 kHz range on vocals and guitars. Apply narrow-Q cuts of -2 to -4 dB at problem frequencies. Consider a de-esser on vocals targeting 5-8 kHz. Rather than boosting highs, try cutting low-mids to improve clarity.
   WARN  Flat / Lifeless Mix — Mix lacks spatial depth and dynamic variation
         Add spatial depth with reverb and delay. Vary dynamics between sections (quieter verses, louder choruses). Check panning — spreading instruments across the stereo field adds life. Even small stereo width differences between verse and chorus create perceived energy.
+  FAIL  Streaming-Unfriendly Master — Master too hot for streaming platforms
+        Spotify normalizes to -14 LUFS, Apple Music to -16 LUFS. Your track will be turned down, and the aggressive limiting will be audible. Consider mastering to -9 to -12 LUFS with a -1.0 dBTP ceiling. The quieter version will actually sound better after platform normalization because it retains more dynamics.
 
 ════════════════════════════════════════════════════════════
-  1 warning(s), 2 failure(s)
+  3 warning(s), 1 failure(s)
 ════════════════════════════════════════════════════════════
 ```
 
 ## Metrics
 
-Bounce House measures 26 metrics across 5 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 33 metrics across 5 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
 
@@ -273,6 +273,7 @@ Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reporte
 | RMS Level | Average signal power | -20 to -10 dB | — |
 | Crest Factor | Peak-to-RMS ratio (transient headroom) | 8 to 14 dB | ✓ |
 | PLR | Peak-to-Loudness Ratio — over-compression indicator | Above 10 dB | ✓ |
+| DC Offset | Constant (0 Hz) offset removed before analysis | Below -60 dBFS | — |
 
 ### Spectral Balance
 
@@ -284,11 +285,13 @@ Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reporte
 | Spectral Flatness | Tonality vs. noise (0.0 = tone, 1.0 = noise) | 0.1 to 0.4 | — |
 | Band Energies | Energy in 7 frequency bands (sub-bass through brilliance) | Relative | — |
 
+Band energies are reported in dB relative to the file's own broadband average (20 Hz-20 kHz mean power density), not absolute dBFS — a positive value means that band sits above the mix's average spectral density, negative means below. Because values are relative, they're comparable between files regardless of overall level.
+
 ### Stereo & Phase
 
 | Metric | What it measures | Good range | Assessed |
 |--------|-----------------|------------|----------|
-| Phase Correlation | L/R correlation — mono compatibility | Above +0.3 | ✓ |
+| Phase Correlation | L/R correlation — mono compatibility | Above +0.5 | ✓ |
 | Mid RMS | Center channel energy (M/S) | Relative | — |
 | Side RMS | Difference channel energy (M/S) | Relative | — |
 | M/S Ratio | Mid-to-side balance | 3 to 12 dB | — |
@@ -301,8 +304,12 @@ Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reporte
 
 | Metric | What it measures | Good range | Assessed |
 |--------|-----------------|------------|----------|
-| Brightness | High-frequency energy ratio | 0.1 to 0.3 | — |
-| Warmth | Low-mid energy ratio | 0.1 to 0.3 | — |
+| Brightness | High-frequency energy ratio (always computed, 0-1 proxy) | 0.1 to 0.3 | — |
+| Warmth | Low-mid energy ratio (always computed, 0-1 proxy) | 0.1 to 0.3 | — |
+| Timbral Brightness | AudioCommons perceptual brightness score | ~0-100 scale | — |
+| Timbral Warmth | AudioCommons perceptual warmth score | ~0-100 scale | — |
+
+Timbral Brightness/Warmth require the optional `perceptual` extra (`uv sync --extra perceptual`); they're reported alongside — not instead of — the always-on Brightness/Warmth proxies, which are what drive the rule and diagnostic engines.
 
 ### Tuning & Pitch
 
@@ -348,7 +355,7 @@ analyzers/        Each analyzer extends BaseAnalyzer
   ├── loudness    EBU R128 via pyloudnorm, crest factor, true peak (ffmpeg)
   ├── spectrum    librosa spectral features + 7-band energy via STFT
   ├── stereo      Phase correlation, M/S decomposition, frequency-dependent width
-  ├── perceptual  Brightness/warmth (proxy or timbral_models)
+  ├── perceptual  Brightness/warmth proxy (+ timbral_models scores if installed)
   └── tuning      Pitch deviation, drift, chroma sharpness (librosa)
   │
   ▼

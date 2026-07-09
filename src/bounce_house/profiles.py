@@ -72,9 +72,9 @@ def _plr_status(value: float) -> str:
 
 
 def _correlation_status(value: float) -> str:
-    if value > 0.3:
+    if value >= 0.5:
         return "pass"
-    if value >= 0.0:
+    if value >= 0.1:
         return "warn"
     return "fail"
 

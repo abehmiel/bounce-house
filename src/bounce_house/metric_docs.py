@@ -373,11 +373,12 @@ _PHASE_CORRELATION = MetricDoc(
         "or thin out when summed to mono (Bluetooth speakers, PA systems, "
         "club subs)."
     ),
-    good_range="+0.3 to +0.7",
+    good_range="+0.5 to +1.0 for a full mix",
     genre_notes=(
-        "All genres benefit from correlation above +0.3 for safe mono "
-        "playback. Ambient/electronic can work at 0.0-0.3 but should be "
-        "checked in mono. Any sustained reading below 0.0 needs fixing."
+        "Finished mixes typically read +0.5 to +1.0 broadband. Ambient and "
+        "wide electronic productions may dip toward +0.1-0.5 — acceptable if "
+        "a mono check confirms nothing disappears. Below +0.1 means real "
+        "mono cancellation risk on Bluetooth speakers, phones, and PA subs."
     ),
     technical=(
         "Method: Pearson correlation coefficient r = sum(L*R) / "
@@ -579,13 +580,15 @@ _BRIGHTNESS = MetricDoc(
     module="perceptual",
     summary="High-frequency energy ratio — how bright or dark the mix sounds.",
     explanation=(
-        "The ratio of energy above 4 kHz to total energy (proxy mode), or a "
-        "perceptual brightness score (timbral_models mode). Higher values "
-        "mean a brighter, more airy mix. Lower values mean a darker, warmer "
-        "tone. Complements the spectral centroid with a single perceptual "
-        "number."
+        "The ratio of energy above 4 kHz to total energy, on a 0-1 scale. "
+        "This proxy is always computed, regardless of whether the optional "
+        "timbral_models extra is installed — diagnostics thresholds are "
+        "calibrated to its 0-1 range. Higher values mean a brighter, more "
+        "airy mix; lower values mean a darker, warmer tone. When the "
+        "perceptual extra is installed, a separate AudioCommons perceptual "
+        "score is also reported under timbral_brightness."
     ),
-    good_range="0.1 to 0.3 (proxy mode, genre-dependent)",
+    good_range="0.1 to 0.3 (genre-dependent)",
     genre_notes=(
         "Bright genres (EDM, pop): higher brightness values. "
         "Dark genres (lo-fi, ambient, dub): lower values. "
@@ -593,9 +596,10 @@ _BRIGHTNESS = MetricDoc(
         "targeting absolute values."
     ),
     technical=(
-        "Proxy method: sum(S[f >= 4kHz]) / sum(S). When timbral_models is "
-        "installed, uses AudioCommons timbral brightness model instead. "
-        "STFT with n_fft=4096."
+        "Method: sum(S[f >= 4kHz]) / sum(S), STFT with n_fft=4096. Always "
+        "computed and always the authoritative 0-1 value used by rules and "
+        "diagnostics — see timbral_brightness for the separate ~0-100 "
+        "AudioCommons model score."
     ),
     aliases=["brightness", "bright", "air", "high_freq_energy"],
 )
@@ -606,23 +610,71 @@ _WARMTH = MetricDoc(
     module="perceptual",
     summary="Low-mid energy ratio — how warm or thin the mix sounds.",
     explanation=(
-        "The ratio of energy in the 200-500 Hz range to total energy "
-        "(proxy mode), or a perceptual warmth score (timbral_models mode). "
-        "Higher values mean a warmer, fuller low-mid character. Very high "
-        "values may indicate muddiness."
+        "The ratio of energy in the 200-500 Hz range to total energy, on a "
+        "0-1 scale. This proxy is always computed, regardless of whether the "
+        "optional timbral_models extra is installed — diagnostics thresholds "
+        "are calibrated to its 0-1 range. Higher values mean a warmer, "
+        "fuller low-mid character; very high values may indicate muddiness. "
+        "When the perceptual extra is installed, a separate AudioCommons "
+        "perceptual score is also reported under timbral_warmth."
     ),
-    good_range="0.1 to 0.3 (proxy mode, genre-dependent)",
+    good_range="0.1 to 0.3 (genre-dependent)",
     genre_notes=(
         "Warm genres (R&B, soul, jazz): higher values. "
         "Thin/bright genres (some electronic): lower values. "
         "Compare against reference tracks rather than targeting absolutes."
     ),
     technical=(
-        "Proxy method: sum(S[200Hz <= f < 500Hz]) / sum(S). When "
-        "timbral_models is installed, uses AudioCommons timbral warmth "
-        "model. STFT with n_fft=4096."
+        "Method: sum(S[200Hz <= f < 500Hz]) / sum(S), STFT with n_fft=4096. "
+        "Always computed and always the authoritative 0-1 value used by "
+        "rules and diagnostics — see timbral_warmth for the separate "
+        "~0-100 AudioCommons model score."
     ),
     aliases=["warmth", "warm", "body", "low_mid_energy"],
+)
+
+_TIMBRAL_BRIGHTNESS = MetricDoc(
+    key="timbral_brightness",
+    name="Timbral Brightness (AudioCommons)",
+    module="perceptual",
+    summary="AudioCommons perceptual brightness model score.",
+    explanation=(
+        "A perceptual brightness score from the AudioCommons timbral_models "
+        "library, available only when the optional `perceptual` extra is "
+        "installed. Reported alongside — not instead of — the always-on "
+        "brightness proxy ratio; it uses a different (~0-100) scale and is "
+        "not used by the rules or diagnostics engines."
+    ),
+    good_range="No fixed range — compare relative to reference tracks",
+    genre_notes="See brightness for genre-specific guidance on the proxy scale.",
+    technical=(
+        "Computed via timbral_models.timbral_brightness(filepath). Returns "
+        "None if the model raises on this file. Requires `uv sync --extra "
+        "perceptual`."
+    ),
+    aliases=["timbral_brightness", "audiocommons_brightness"],
+)
+
+_TIMBRAL_WARMTH = MetricDoc(
+    key="timbral_warmth",
+    name="Timbral Warmth (AudioCommons)",
+    module="perceptual",
+    summary="AudioCommons perceptual warmth model score.",
+    explanation=(
+        "A perceptual warmth score from the AudioCommons timbral_models "
+        "library, available only when the optional `perceptual` extra is "
+        "installed. Reported alongside — not instead of — the always-on "
+        "warmth proxy ratio; it uses a different (~0-100) scale and is not "
+        "used by the rules or diagnostics engines."
+    ),
+    good_range="No fixed range — compare relative to reference tracks",
+    genre_notes="See warmth for genre-specific guidance on the proxy scale.",
+    technical=(
+        "Computed via timbral_models.timbral_warmth(filepath). Returns None "
+        "if the model raises on this file. Requires `uv sync --extra "
+        "perceptual`."
+    ),
+    aliases=["timbral_warmth", "audiocommons_warmth"],
 )
 
 # --- Tuning metrics ---
@@ -646,7 +698,10 @@ _TUNING_DEVIATION = MetricDoc(
     technical=(
         "Estimated via librosa.estimate_tuning() which builds a histogram of "
         "spectral peak deviations from the equal-tempered grid. Resolution: "
-        "1 cent. Works on polyphonic content."
+        "1 cent. Works on polyphonic content. Note: the estimate is modulo "
+        "one semitone (±50 cents) — a mix tuned a full half-step down (e.g., "
+        "A=415) wraps toward zero and cannot be distinguished from concert "
+        "pitch by this method."
     ),
     aliases=["tuning", "pitch", "concert_pitch", "a440"],
 )
@@ -805,6 +860,8 @@ METRICS: dict[str, MetricDoc] = {
         _FREQ_WIDTH,
         _BRIGHTNESS,
         _WARMTH,
+        _TIMBRAL_BRIGHTNESS,
+        _TIMBRAL_WARMTH,
         _TUNING_DEVIATION,
         _ESTIMATED_A,
         _PITCH_DRIFT_RANGE,
@@ -844,7 +901,7 @@ MODULES: dict[str, list[str]] = {
         "low_block_correlation",
         "frequency_width",
     ],
-    "perceptual": ["brightness", "warmth"],
+    "perceptual": ["brightness", "warmth", "timbral_brightness", "timbral_warmth"],
     "tuning": [
         "tuning_deviation_cents",
         "estimated_a_hz",
