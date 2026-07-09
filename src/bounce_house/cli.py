@@ -222,7 +222,7 @@ def _run_analysis(
                 stage=profile.name,
             )
         )
-    return 0
+    return _exit_code_for_results(data["results"])
 
 
 def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
@@ -310,22 +310,19 @@ def _run_dir(
     return _dir_exit_code(file_data)
 
 
-def _dir_exit_code(file_data: list[dict]) -> int:
-    """Determine exit code from batch results. 0=pass, 1=warn, 2=fail."""
-    has_fail = False
-    has_warn = False
-    for data in file_data:
-        for result in data["results"]:
-            for a in result.assessments:
-                if a.status == "fail":
-                    has_fail = True
-                elif a.status == "warn":
-                    has_warn = True
-    if has_fail:
+def _exit_code_for_results(results: list[AnalysisResult]) -> int:
+    """Exit code from assessments: 0 = all pass, 1 = warnings, 2 = failures."""
+    statuses = {a.status for r in results for a in r.assessments}
+    if "fail" in statuses:
         return 2
-    if has_warn:
+    if "warn" in statuses:
         return 1
     return 0
+
+
+def _dir_exit_code(file_data: list[dict]) -> int:
+    """Determine exit code from batch results. 0=pass, 1=warn, 2=fail."""
+    return max((_exit_code_for_results(data["results"]) for data in file_data), default=0)
 
 
 def main(argv: list[str] | None = None) -> int:
