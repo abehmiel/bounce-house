@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `uvx` / `pip install git+…` installs failed on dependency resolution (numba floored to >=0.60)
 - Files shorter than 400 ms crashed loudness analysis; LUFS/LRA now report as unavailable
 - `--json` emitted non-standard `NaN`/`-Infinity`; non-finite values now serialize as `null`
+- `dir` returned exit `0` even when some files were skipped; a skipped file now forces exit ≥1 and appears in the JSON `skipped` array
 - README installation instructions did not work as written
 
 ### Changed

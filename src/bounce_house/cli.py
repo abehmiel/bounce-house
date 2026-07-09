@@ -313,7 +313,7 @@ def _run_dir(
         return 1
 
     if use_json:
-        print(format_dir_json(file_data, directory, stage=profile.name))
+        print(format_dir_json(file_data, directory, errors, stage=profile.name))
     else:
         for data in file_data:
             _print_report(
@@ -327,7 +327,7 @@ def _run_dir(
             )
         _print_report(format_dir_summary(file_data, directory, errors, stage=profile.name))
 
-    return _dir_exit_code(file_data)
+    return _batch_exit_code(file_data, errors)
 
 
 def _exit_code_for_results(results: list[AnalysisResult]) -> int:
@@ -343,6 +343,16 @@ def _exit_code_for_results(results: list[AnalysisResult]) -> int:
 def _dir_exit_code(file_data: list[dict]) -> int:
     """Determine exit code from batch results. 0=pass, 1=warn, 2=fail."""
     return max((_exit_code_for_results(data["results"]) for data in file_data), default=0)
+
+
+def _batch_exit_code(file_data: list[dict], errors: list[tuple[str, str]]) -> int:
+    """Batch exit code including skipped files.
+
+    Same 0/1/2 assessment ranking as `_dir_exit_code`, but any skipped
+    (unreadable/corrupt) file forces at least exit 1 — otherwise a batch that
+    silently drops inputs could report success and become a false green in CI.
+    """
+    return max(_dir_exit_code(file_data), 1 if errors else 0)
 
 
 def main(argv: list[str] | None = None) -> int:

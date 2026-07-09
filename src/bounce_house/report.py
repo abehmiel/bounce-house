@@ -460,7 +460,12 @@ def format_dir_summary(
     return "\n".join(lines)
 
 
-def format_dir_json(file_data: list[dict], directory: str, stage: str = "master") -> str:
+def format_dir_json(
+    file_data: list[dict],
+    directory: str,
+    errors: list[tuple[str, str]] | None = None,
+    stage: str = "master",
+) -> str:
     """Format batch directory results as JSON."""
     files_output = []
     total_warns = 0
@@ -510,13 +515,17 @@ def format_dir_json(file_data: list[dict], directory: str, stage: str = "master"
 
         files_output.append(entry)
 
+    skipped = [{"file": name, "error": message} for name, message in (errors or [])]
+
     output = {
         "schema_version": 1,
         "directory": directory,
         "stage": stage,
         "files": files_output,
+        "skipped": skipped,
         "summary": {
             "total_files": len(file_data),
+            "total_skipped": len(skipped),
             "total_warnings": total_warns,
             "total_failures": total_fails,
         },

@@ -249,13 +249,35 @@ class TestDirCommand:
         assert result in (0, 1, 2)
 
     def test_dir_with_corrupt_file_continues(self, tmp_wav_dir, capsys):
-        """A corrupt file should not stop batch processing."""
+        """A corrupt file should not stop batch processing, but must not exit 0."""
         corrupt = tmp_wav_dir / "zzz_corrupt.wav"
         corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
-        _result = main(["dir", str(tmp_wav_dir)])
+        result = main(["dir", str(tmp_wav_dir)])
         captured = capsys.readouterr()
         assert "track_a.wav" in captured.out
         assert "zzz_corrupt.wav" in captured.err
+        # A skipped file means part of the requested input was not analyzed —
+        # this must not report success (would be a false green in CI).
+        assert result >= 1
+
+    def test_dir_json_surfaces_skipped_files(self, tmp_wav_dir, capsys):
+        """dir --json must report skipped files so machine consumers see them."""
+        corrupt = tmp_wav_dir / "zzz_corrupt.wav"
+        corrupt.write_bytes(b"NOTANAUDIOFILE\x00\x01\x02\x03")
+        result = main(["dir", str(tmp_wav_dir), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert result >= 1
+        assert data["summary"]["total_skipped"] == 1
+        # total_files stays the count of successfully-analyzed files (backward compatible)
+        assert data["summary"]["total_files"] == 3
+        assert any(s["file"] == "zzz_corrupt.wav" for s in data["skipped"])
+
+    def test_dir_json_no_skipped_key_omits_when_clean(self, tmp_wav_dir, capsys):
+        """A clean batch has no skipped files: total_skipped is 0, skipped is empty."""
+        main(["dir", str(tmp_wav_dir), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert data["summary"]["total_skipped"] == 0
+        assert data["skipped"] == []
 
 
 class TestDiscoverWavFiles:
@@ -318,6 +340,51 @@ class TestDiscoverWavFiles:
 
         files = _discover_wav_files(str(tmp_path), recursive=False)
         assert files == []
+
+
+class TestBatchExitCode:
+    """The errors bump: any skipped file forces exit >= 1 without changing rank."""
+
+    def _all_pass(self):
+        return [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness", assessments=[Assessment("lufs", -14.0, "pass", "ok")]
+                    )
+                ]
+            }
+        ]
+
+    def test_all_pass_no_errors_is_0(self):
+        from bounce_house.cli import _batch_exit_code
+
+        assert _batch_exit_code(self._all_pass(), []) == 0
+
+    def test_all_pass_with_skipped_file_is_1(self):
+        from bounce_house.cli import _batch_exit_code
+
+        # This is the false-green case: every analyzed file passes, but one was skipped.
+        assert _batch_exit_code(self._all_pass(), [("corrupt.wav", "boom")]) == 1
+
+    def test_failure_still_trumps_skipped(self):
+        from bounce_house.cli import _batch_exit_code
+
+        fail = [
+            {
+                "results": [
+                    AnalysisResult(
+                        module="loudness", assessments=[Assessment("lufs", -5.0, "fail", "loud")]
+                    )
+                ]
+            }
+        ]
+        assert _batch_exit_code(fail, [("corrupt.wav", "boom")]) == 2
+
+    def test_empty_batch_with_errors_is_1(self):
+        from bounce_house.cli import _batch_exit_code
+
+        assert _batch_exit_code([], [("corrupt.wav", "boom")]) == 1
 
 
 class TestDirExitCode:

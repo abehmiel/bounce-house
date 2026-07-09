@@ -163,6 +163,12 @@ All analysis commands (`analyze`, `compare`, `dir`, and the single-module comman
 exit with `0` = all checks passed, `1` = warnings (also used for unreadable-file
 errors), `2` = failures — so any of them can gate a CI pipeline.
 
+For `dir`, any unreadable file is skipped rather than aborting the batch, but a
+skipped file forces the exit code to at least `1` and appears in the JSON
+`skipped` array (with `summary.total_skipped`) — so a partial batch never reports
+success. `summary.total_files` continues to count only the successfully analyzed
+files.
+
 Color is used only when stdout is a terminal. Set `NO_COLOR=1` to force plain
 output, or `FORCE_COLOR=1` to keep colors when piping.
 
