@@ -26,7 +26,8 @@ class LoudnessAnalyzer(AnalyzerBase):
         Returns an AnalysisResult with the following metrics:
             integrated_lufs (float): Integrated loudness per ITU-R BS.1770-4.
             loudness_range_lu (float | None): Loudness range in LU, or None if unavailable.
-            sample_peak_dbfs (float): Maximum absolute sample value in dBFS.
+            sample_peak_dbfs (float): Peak of the delivered waveform in dBFS,
+                measured before DC removal (DC consumes real headroom).
             true_peak_dbtp (float): True peak in dBTP via ffmpeg; falls back to sample peak.
             true_peak_available (bool): Whether ffmpeg-based true peak was measured.
             rms_db (float): RMS level in dB.
@@ -59,9 +60,13 @@ class LoudnessAnalyzer(AnalyzerBase):
         except Exception:
             metrics["loudness_range_lu"] = None
 
-        # Sample peak in dBFS
+        # Sample peak in dBFS — measured on the delivered waveform (DC included),
+        # since a DC offset consumes real headroom. AudioData.raw_sample_peak holds
+        # the pre-DC-removal peak; hand-built AudioData (tests) has no raw peak, so
+        # use the DC-free sample peak there.
         peak_linear = float(np.max(np.abs(audio.samples)))
-        sample_peak_db = 20.0 * np.log10(peak_linear + 1e-10)
+        headroom_peak = audio.raw_sample_peak if audio.raw_sample_peak is not None else peak_linear
+        sample_peak_db = 20.0 * np.log10(headroom_peak + 1e-10)
         metrics["sample_peak_dbfs"] = round(float(sample_peak_db), 1)
 
         # True peak via ffmpeg; fall back to sample peak when ffmpeg is unavailable.

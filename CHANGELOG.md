@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Installing the `perceptual` extra no longer breaks the muddy/harsh/thin diagnostics (timbral scores now namespaced)
 - The detuned-mix diagnostic now fires for flat tunings, not only sharp ones
 - DC offset is removed before analysis and reported as a new `dc_offset_db` metric
+- Sample peak is measured on the delivered waveform (DC included) so a DC-heavy file no longer under-reports headroom when ffmpeg (true peak) is unavailable
 
 ### Changed
 - `analyze`, `compare`, and single-module commands now exit 0/1/2 (pass/warn/fail) like `dir`

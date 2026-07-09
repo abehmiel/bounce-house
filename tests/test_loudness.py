@@ -149,6 +149,32 @@ class TestDcOffsetMetric:
         result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
         assert result.metrics["dc_offset_db"] < -60.0
 
+    def test_peak_reflects_raw_waveform_without_ffmpeg(self, tmp_path, monkeypatch):
+        """Peak/headroom checks must see the delivered waveform, DC included.
+
+        DC removal happens for RMS/crest/spectral, but the peak a converter
+        actually outputs includes the offset. On machines without ffmpeg the
+        true-peak fallback is the sample peak, so both must report the raw
+        peak or a hot DC-heavy file silently reads as safe.
+        """
+        import soundfile as sf
+
+        # ffmpeg absent → _measure_true_peak returns None → true_peak falls back to sample peak
+        monkeypatch.setattr("shutil.which", lambda x: None)
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        # 0.3 DC + 0.1 sine: raw peak ≈ 0.4 (-7.96 dBFS); DC-free peak ≈ 0.1 (-20 dBFS)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "dc.wav"))
+
+        # Raw delivered peak 20*log10(0.4) ≈ -7.96 dBFS — NOT the DC-free -20 dBFS
+        assert result.metrics["sample_peak_dbfs"] == pytest.approx(-7.96, abs=0.2)
+        assert result.metrics["true_peak_available"] is False
+        # Fallback true peak inherits the raw sample peak, not the DC-suppressed one
+        assert result.metrics["true_peak_dbtp"] == pytest.approx(-7.96, abs=0.2)
+
 
 class TestPerChannelCrest:
     def test_hard_panned_sine_crest_is_3db(self, tmp_path):

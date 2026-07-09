@@ -118,9 +118,10 @@ _SAMPLE_PEAK = MetricDoc(
     good_range="Below -0.3 dBFS",
     genre_notes="Applies equally to all genres.",
     technical=(
-        "Method: 20 * log10(max(|samples|)). This is the standard digital "
-        "peak measurement without oversampling. Does not account for "
-        "inter-sample peaks that occur during D/A reconstruction."
+        "Method: 20 * log10(max(|samples|)) on the delivered waveform, measured "
+        "before DC removal so any DC offset counts against headroom. This is the "
+        "standard digital peak measurement without oversampling; it does not "
+        "account for inter-sample peaks that occur during D/A reconstruction."
     ),
     aliases=["sample_peak", "dbfs", "digital_peak"],
 )
