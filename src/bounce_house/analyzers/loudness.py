@@ -30,7 +30,8 @@ class LoudnessAnalyzer(AnalyzerBase):
             true_peak_dbtp (float): True peak in dBTP via ffmpeg; falls back to sample peak.
             true_peak_available (bool): Whether ffmpeg-based true peak was measured.
             rms_db (float): RMS level in dB.
-            crest_factor_db (float): Peak-to-RMS ratio in dB.
+            crest_factor_db (float): Per-channel peak-to-RMS ratio in dB, averaged over
+                active channels.
             dc_offset_db (float): DC offset removed at load, in dBFS (informational).
         """
         metrics: dict = {}
