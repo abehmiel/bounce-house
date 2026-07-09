@@ -6,7 +6,7 @@
 
 A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House runs 30+ metrics across loudness, spectral balance, stereo imaging, tuning, and perceptual quality. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
+Bounce House runs 39 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, and perceptual quality — 7 modules in all. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
 
@@ -72,17 +72,43 @@ uv sync --extra perceptual
 bounce-house analyze mix.wav
 ```
 
+### Supported file formats
+
+WAV, FLAC, AIFF, and OGG are accepted everywhere a file path is expected —
+`analyze`, `compare`, the single-module commands, and `dir` (which discovers
+all supported formats in a directory, not just WAV). MP3 and M4A are not
+decoded directly; convert them first:
+
+```bash
+ffmpeg -i input.mp3 output.wav
+```
+
 ### Individual modules
 
 Run a single analysis module when you only care about one domain:
 
 ```bash
-bounce-house loudness mix.wav    # EBU R128 loudness, dynamics, crest factor
-bounce-house spectrum mix.wav    # Spectral centroid, bandwidth, band energies
-bounce-house stereo mix.wav      # Phase correlation, M/S ratio, stereo width
-bounce-house perceptual mix.wav  # Brightness, warmth (+ timbral_models scores if installed)
-bounce-house tuning mix.wav      # Tuning deviation, pitch drift, chroma sharpness
+bounce-house loudness mix.wav      # EBU R128 loudness, dynamics, crest factor
+bounce-house spectrum mix.wav      # Spectral centroid, bandwidth, band energies
+bounce-house stereo mix.wav        # Phase correlation, M/S ratio, stereo width
+bounce-house translation mix.wav   # Mono loss, per-band cancellation, small-speaker low-end reliance
+bounce-house perceptual mix.wav    # Brightness, warmth (+ timbral_models scores if installed)
+bounce-house tuning mix.wav        # Tuning deviation, pitch drift, chroma sharpness
+bounce-house qc mix.wav            # Clipping, leading/trailing silence
 ```
+
+### Genre-calibrated targets
+
+```bash
+bounce-house analyze mix.wav --genre edm
+```
+
+`--genre` (pop, rock, edm, hip_hop, metal, folk) overlays genre-specific target
+ranges on top of the stage profile, on `analyze`, `dir`, `compare`, and the
+single-module commands. These targets are provisional engineering priors, not
+calibrated from real-song evals yet — the terminal report and JSON both label
+genre-affected metrics accordingly (see [TODO](TODO.md) for the deferred
+calibration stage).
 
 ### Compare against a reference
 
@@ -105,10 +131,10 @@ bounce-house explain lra --technical  # Include measurement standards
 
 ### Batch directory analysis
 
-Analyze all WAV files in a directory at once — great for checking an album, stems folder, or CI pipeline:
+Analyze all supported audio files (wav/flac/aiff/ogg) in a directory at once — great for checking an album, stems folder, or CI pipeline:
 
 ```bash
-bounce-house dir ./masters/                    # All WAVs in directory
+bounce-house dir ./masters/                    # All supported files in directory
 bounce-house dir ./masters/ --recursive        # Include subdirectories
 bounce-house dir ./masters/ --json             # Machine-readable output
 bounce-house dir ./masters/ --reference ref.wav  # Compare all against reference
@@ -186,79 +212,101 @@ output, or `FORCE_COLOR=1` to keep colors when piping.
 ════════════════════════════════════════════════════════════
 
 ── Loudness & Dynamics ────────────────────────────────────
-  Integrated LUFS        -15.6  PASS
-  Loudness Range         +1.5  FAIL
-  Sample Peak            -1.0
-  True Peak              -0.7  WARN
-  RMS Level              -17.4
-  DC Offset              -53.1
-  Crest Factor           +16.1  PASS
-  PLR                    +14.9  PASS
+  Integrated LUFS        -7.1  WARN
+  Loudness Range         +1.6  FAIL
+  Sample Peak            -3.3
+  True Peak              -3.3  PASS
+  RMS Level              -9.6
+  DC Offset              -51.8  PASS
+  Crest Factor           +6.1  WARN
+  PLR                    +3.8  FAIL
 
 ── Spectral Balance ───────────────────────────────────────
-  Centroid               2,613.5 Hz
-  Bandwidth              2,465.6 Hz
-  Rolloff (85%)          5,091.9 Hz
-  Flatness               0.0179
+  Centroid               2,706.6 Hz
+  Bandwidth              5,125.2 Hz
+  Rolloff (85%)          6,469.0 Hz
+  Flatness               0.0004
 
-  sub-bass                   16.0 dB rel
-  bass                       18.4 dB rel
-  low-mid                     8.4 dB rel
-  mid                          1.8 dB rel
-  upper-mid                 -23.4 dB rel
-  presence                  -19.2 dB rel
-  brilliance                -12.3 dB rel
+  sub-bass                   10.0 dB rel
+  bass                       -1.8 dB rel
+  low-mid                    18.7 dB rel
+  mid                        -2.3 dB rel
+  upper-mid                 -27.8 dB rel
+  presence                  -33.2 dB rel
+  brilliance                -33.2 dB rel
 
 ── Stereo & Phase ─────────────────────────────────────────
-  Phase Correlation      0.9989  PASS
-  Mid RMS                -17.4
-  Side RMS               -49.8
-  M/S Ratio              +32.4
-  Stereo Width           0.0234
-  Balance                +0.1  PASS
-  Min Block Corr         0.9978
-  Block Corr (p5)        0.9980  PASS
+  Phase Correlation      0.6040  PASS
+  Mid RMS                -10.6
+  Side RMS               -16.5
+  M/S Ratio              +5.9  PASS
+  Stereo Width           0.3354  PASS
+  Balance                +1.6  FAIL
+  Block Corr (p5)        0.5997  PASS
 
   Frequency-dependent correlation:
     sub-bass           +1.000
-    low-mid            +1.000
-    mid                +0.999
-    upper-mid          +1.000
-    air                +1.000
+    low-mid            +0.707
+    mid                -0.326
+    upper-mid          +0.473
+    air                +0.991
+
+── Translation (Mono & Small Speakers) ────────────────────
+  Mono Loss              -1.0  PASS
+  Worst Band (mono)      mid
+  Worst Band Loss        -4.7
+  Low-End Reliance       0.0280  PASS
+
+  Mono loss by band:
+    sub-bass           -0.0 dB
+    low-mid            -0.7 dB
+    mid                -4.7 dB
+    upper-mid          -1.4 dB
+    air                -0.0 dB
 
 ── Perceptual Quality ─────────────────────────────────────
-  Brightness             0.0521
-  Warmth                 0.1228
+  Brightness             0.0004
+  Warmth                 0.9274
 
 ── Tuning & Pitch ─────────────────────────────────────────
-  Tuning Deviation       +4.0 cents  PASS
-  Concert Pitch          441.0 Hz
-  Closest Standard       A=441
-  Pitch Drift (std)      +4.5 cents
-  Pitch Drift (range)    +9.0 cents  WARN
-  Pitch Trend            +96.4 cents
-  Chroma Sharpness       0.3050  WARN
+  Tuning Deviation       +13.0 cents  WARN
+  Concert Pitch          443.3 Hz
+  Closest Standard       A=443
+  Pitch Drift (std)      +1.5 cents  PASS
+  Pitch Drift (range)    +4.0 cents  PASS
+  Pitch Trend            +10.4 cents
+  Chroma Sharpness       0.8560  PASS
+
+── Quality Control ────────────────────────────────────────
+  Clip Events            0  PASS
+  Longest Clip Run       0
+  Leading Silence        0.0000  PASS
+  Trailing Silence       0.0000  PASS
 
 ── Suggestions ────────────────────────────────────────────
-  FAIL  Loudness range is 1.5 LU — extreme dynamics, review compressor/limiter settings
-  WARN  True peak is -0.7 dBTP — close to clipping, consider lowering limiter ceiling to -1.0 dBTP
-  WARN  Pitch stability: 9.0 cents range — moderate drift, consider pitch correction
-  WARN  Chroma definition: 0.30 — somewhat diffuse pitch content
+  FAIL  Loudness range is 1.6 LU — extreme dynamics, review compressor/limiter settings
+  FAIL  PLR is 3.8 dB — heavily limited, consider backing off the limiter
+  FAIL  Channel balance is +1.6 dB — significant imbalance, review pan positions
+  WARN  Integrated loudness is -7.1 LUFS — outside typical -16 to -8 range
+  WARN  Crest factor is 6.1 dB — transients may be over-compressed
+  WARN  Tuning deviation is +13.0 cents from A440 — check reference pitch
 
 ── Mix Diagnostics ────────────────────────────────────────
-  WARN  Flat / Lifeless Mix — Mix lacks spatial depth and dynamic variation
-        Add spatial depth with reverb and delay. Vary dynamics between sections (quieter verses, louder choruses). Check panning — spreading instruments across the stereo field adds life. Even small stereo width differences between verse and chorus create perceived energy.
-  FAIL  Streaming-Unfriendly Master — Master too hot for streaming platforms
-        Spotify normalizes to -14 LUFS, Apple Music to -16 LUFS. Your track will be turned down, and the aggressive limiting will be audible. Consider mastering to -9 to -12 LUFS with a -1.0 dBTP ceiling. The quieter version will actually sound better after platform normalization because it retains more dynamics.
+  WARN  Muddy Mix — Low-mid buildup causing muddy mix
+        Cut 2-4 dB in the 200-500 Hz range. Check for overlapping bass, guitar body, and vocal chest resonance. Use a high-pass filter on non-bass instruments to remove unnecessary low-mid energy.
+  WARN  Thin / Weak Mix — Insufficient low-frequency energy; mix sounds thin
+        Check if high-pass filters are set too high. Typical HPF for vocals is 80-120 Hz, not 200+ Hz. Verify your monitoring: untreated rooms can cause phantom bass buildup that leads to over-cutting. Compare your bass/low-mid levels against a reference track.
+  FAIL  Over-Compressed — Over-compressed master; dynamics crushed
+        Reduce bus compressor ratio or increase threshold. Ease off the limiter — aim for at least 8 dB crest factor. Target LRA above 5 LU for streaming. Spotify normalizes to -14 LUFS, so pushing beyond -8 gains nothing and costs dynamics.
 
 ════════════════════════════════════════════════════════════
-  3 warning(s), 1 failure(s)
+  3 warning(s), 3 failure(s)
 ════════════════════════════════════════════════════════════
 ```
 
 ## Metrics
 
-Bounce House measures 33 metrics across 5 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 39 metrics across 7 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
 
@@ -294,11 +342,24 @@ Band energies are reported in dB relative to the file's own broadband average (2
 | Phase Correlation | L/R correlation — mono compatibility | Above +0.5 | ✓ |
 | Mid RMS | Center channel energy (M/S) | Relative | — |
 | Side RMS | Difference channel energy (M/S) | Relative | — |
-| M/S Ratio | Mid-to-side balance | 3 to 12 dB | — |
-| Stereo Width | Side-to-total energy ratio | 0.2 to 0.4 | — |
+| M/S Ratio | Mid-to-side balance | 3 to 12 dB | ✓ |
+| Stereo Width | Side-to-total energy ratio | 0.08 to 0.45 | ✓ |
 | Channel Balance | L/R level difference | Within +/- 0.5 dB | ✓ |
 | Block Correlation (p5) | Worst sustained phase in 50 ms windows (5th percentile) | Above 0.0 | ✓ |
 | Frequency-Dependent Correlation | Per-band stereo correlation | Sub-bass >0.9 | — |
+
+### Translation (Mono & Small Speakers)
+
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Mono Loss | Energy lost when the mix is summed to mono | 0 to -1 dB | ✓ |
+| Mono Loss by Band | Where in the spectrum mono summing cancels energy | Each band 0 to -1 dB | — |
+| Low-End Reliance | Fraction of the mix's energy below 120 Hz | 0.05 to 0.35 | ✓ |
+
+Mono Loss by Band is reported alongside the worst-offending band and its loss
+in dB (`worst_mono_band` / `worst_mono_band_loss_db` in JSON) so you know
+where to look, but only the broadband `mono_loss_db` and `low_end_reliance`
+carry pass/warn/fail rules.
 
 ### Perceptual Quality
 
@@ -318,7 +379,17 @@ Timbral Brightness/Warmth require the optional `perceptual` extra (`uv sync --ex
 | Tuning Deviation | Offset from A440 concert pitch | Within ±8 cents | ✓ |
 | Concert Pitch (A) | Estimated frequency of concert A | 435 to 445 Hz | — |
 | Pitch Drift Range | Total pitch excursion over time | Under 8 cents | ✓ |
+| Pitch Drift (std) | Standard deviation of tuning across time windows | Under 5 cents | ✓ |
 | Chroma Sharpness | How well-defined pitch content is (0-1) | Above 0.6 | ✓ |
+
+### Quality Control
+
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Clip Events | Count of hard-clipped sample runs (≥3 consecutive samples at −0.1 dBFS) | 0 | ✓ |
+| Longest Clip Run | Length in samples of the longest flattened run | 0 samples | — |
+| Leading Silence | Silence before the audio starts | 0 to 0.5 s | ✓ |
+| Trailing Silence | Silence after the audio ends | 0 to 5 s | ✓ |
 
 ## Mix Diagnostics
 
@@ -345,7 +416,7 @@ Diagnostics layer on top of individual metric rules — they don't replace them.
 Bounce House follows a pipeline: **load → analyze → assess → diagnose → format**.
 
 ```
-wav file
+wav/flac/aiff/ogg file
   │
   ▼
 audio.py          Load via soundfile → AudioData (samples, sr, channels)
@@ -355,8 +426,10 @@ analyzers/        Each analyzer extends BaseAnalyzer
   ├── loudness    EBU R128 via pyloudnorm, crest factor, true peak (ffmpeg)
   ├── spectrum    librosa spectral features + 7-band energy via STFT
   ├── stereo      Phase correlation, M/S decomposition, frequency-dependent width
+  ├── translation Mono-sum loss, per-band mono cancellation, low-end reliance
   ├── perceptual  Brightness/warmth proxy (+ timbral_models scores if installed)
-  └── tuning      Pitch deviation, drift, chroma sharpness (librosa)
+  ├── tuning      Pitch deviation, drift, chroma sharpness (librosa)
+  └── qc          Clipping detection, leading/trailing silence
   │
   ▼
 rules.py          Data-driven pass/warn/fail rules per metric
@@ -374,7 +447,7 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 26 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 39 metric explanations, used by both the `explain` command and (potentially) report tooltips
 - **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares
@@ -385,7 +458,7 @@ Most audio measurement tools are either GUI plugins or single-purpose CLI utilit
 - **EXPOSE** — batch loudness scanner. Focuses on loudness compliance (LUFS, true peak) for delivery. Doesn't cover spectral balance, stereo imaging, or actionable mix advice.
 - **loudness-scanner** — CLI for EBU R128 loudness only. Single metric, no spectral or stereo analysis.
 
-Bounce House combines multi-domain analysis (loudness + spectrum + stereo + perceptual) with a rule engine that produces actionable mixing advice — all from the command line. Pipe `--json` output into your own scripts or CI workflows.
+Bounce House combines multi-domain analysis (loudness + spectrum + stereo + translation + perceptual + tuning + quality control) with a rule engine that produces actionable mixing advice — all from the command line. Pipe `--json` output into your own scripts or CI workflows.
 
 ## Dependencies
 
@@ -419,33 +492,39 @@ uv run --extra dev mypy src/
 ```
 src/bounce_house/
 ├── __init__.py          Version
-├── audio.py             Audio loading (soundfile → AudioData)
+├── audio.py             Audio loading (soundfile → AudioData), multi-format support
 ├── cli.py               CLI entry point and argparse setup
 ├── rules.py             Pass/warn/fail assessment rules
 ├── report.py            Terminal and JSON formatters
 ├── metric_docs.py       Metric documentation for explain command
 ├── diagnostics.py       Multi-metric diagnostic pattern engine
 ├── profiles.py          Stage profiles (mix vs. master thresholds)
+├── genres.py            Genre target overlays (provisional) + --genre flag support
 └── analyzers/
     ├── base.py          BaseAnalyzer, AnalysisResult, Assessment
     ├── loudness.py      EBU R128, dynamics, true peak
     ├── spectrum.py      Spectral features, band energies
     ├── stereo.py        Phase, M/S, stereo width
+    ├── translation.py   Mono loss, per-band mono cancellation, low-end reliance
     ├── perceptual.py    Brightness, warmth
-    └── tuning.py        Tuning deviation, pitch drift, chroma sharpness
+    ├── tuning.py        Tuning deviation, pitch drift, chroma sharpness
+    └── qc.py            Clipping detection, leading/trailing silence
 tests/
 ├── conftest.py          Synthetic audio fixtures
 ├── test_audio.py
 ├── test_cli.py
 ├── test_diagnostics.py
 ├── test_explain.py
+├── test_genres.py
 ├── test_loudness.py
 ├── test_perceptual.py
 ├── test_profiles.py
+├── test_qc.py
 ├── test_report.py
 ├── test_rules.py
 ├── test_spectrum.py
 ├── test_stereo.py
+├── test_translation.py
 └── test_tuning.py
 ```
 
