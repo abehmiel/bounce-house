@@ -3,6 +3,8 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
+import soundfile as sf
 
 from bounce_house.audio import AudioData, load_audio
 
@@ -62,3 +64,51 @@ def test_audio_data_is_stereo(tmp_wav, tmp_mono_wav):
     mono = load_audio(tmp_mono_wav)
     assert stereo.is_stereo is True
     assert mono.is_stereo is False
+
+
+class TestRealisticFixtures:
+    def test_mixlike_fixture_analyzes_end_to_end(self, tmp_mixlike_wav):
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+
+        data = _analyze_file(str(tmp_mixlike_wav), profile=get_profile("master"))
+        loudness = next(r for r in data["results"] if r.module == "loudness")
+        # Music-shaped signal: sane loudness and dynamics, no crash anywhere
+        assert -30.0 < loudness.metrics["integrated_lufs"] < -3.0
+        assert 3.0 < loudness.metrics["crest_factor_db"] < 25.0
+
+    def test_mixlike_fixture_triggers_no_spectral_diagnostics(self, tmp_mixlike_wav):
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+
+        data = _analyze_file(str(tmp_mixlike_wav), profile=get_profile("master"))
+        fired = {d.pattern for d in data["diagnoses"]}
+        # Balanced pseudo-music must not read as muddy/harsh/thin (Stage 2 checklist)
+        assert not ({"muddy_mix", "harsh_mix", "thin_mix"} & fired), f"unexpected: {fired}"
+
+    def test_pink_fixture_is_deterministic(self, tmp_pink_wav):
+        from bounce_house.audio import load_audio
+        from tests.conftest import _pink_noise
+
+        audio = load_audio(tmp_pink_wav)
+        assert audio.channels == 2
+        assert audio.duration == pytest.approx(8.0, abs=0.01)
+        assert float(np.max(np.abs(audio.samples))) > 0.5
+        # Seeded generator produces identical noise on every invocation
+        a = _pink_noise(4096, np.random.default_rng(42))
+        b = _pink_noise(4096, np.random.default_rng(42))
+        assert np.array_equal(a, b)
+
+
+class TestDcRemoval:
+    def test_dc_offset_removed_at_load(self, tmp_path):
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)  # 0.3 DC + small sine
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        from bounce_house.audio import load_audio
+
+        audio = load_audio(tmp_path / "dc.wav")
+        assert float(np.abs(np.mean(audio.samples))) < 1e-6  # mean removed
+        assert audio.dc_offset is not None
+        assert audio.dc_offset[0] == pytest.approx(0.3, abs=0.01)

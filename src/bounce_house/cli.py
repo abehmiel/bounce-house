@@ -162,8 +162,19 @@ def _analyze_file(
     path = Path(file_path)
     audio = load_audio(path)
     reference = None
+    warnings: list[str] = []
     if reference_path:
         reference = load_audio(Path(reference_path))
+        if reference.sample_rate != audio.sample_rate:
+            # Band energies are normalized per file over 20 Hz–Nyquist, so a
+            # different Nyquist shifts the reference's broadband baseline and
+            # produces spurious per-band differences. Resampling to a common
+            # rate is deferred (Stage 3); warn so the comparison isn't trusted blindly.
+            warnings.append(
+                f"Reference sample rate ({reference.sample_rate} Hz) differs from "
+                f"the mix ({audio.sample_rate} Hz); spectral band comparisons may be "
+                "unreliable until both are at the same rate."
+            )
     if analyzers is None:
         analyzers = ALL_ANALYZERS
     results: list[AnalysisResult] = []
@@ -188,6 +199,7 @@ def _analyze_file(
         "results": results,
         "file_info": file_info,
         "diagnoses": diagnoses,
+        "warnings": warnings,
     }
 
 
@@ -222,6 +234,8 @@ def _run_analysis(
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+    for warning in data.get("warnings", []):
+        print(f"Warning: {warning}", file=sys.stderr)
     if use_json:
         print(
             format_json(

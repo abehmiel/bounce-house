@@ -26,11 +26,14 @@ class LoudnessAnalyzer(AnalyzerBase):
         Returns an AnalysisResult with the following metrics:
             integrated_lufs (float): Integrated loudness per ITU-R BS.1770-4.
             loudness_range_lu (float | None): Loudness range in LU, or None if unavailable.
-            sample_peak_dbfs (float): Maximum absolute sample value in dBFS.
+            sample_peak_dbfs (float): Peak of the delivered waveform in dBFS,
+                measured before DC removal (DC consumes real headroom).
             true_peak_dbtp (float): True peak in dBTP via ffmpeg; falls back to sample peak.
             true_peak_available (bool): Whether ffmpeg-based true peak was measured.
             rms_db (float): RMS level in dB.
-            crest_factor_db (float): Peak-to-RMS ratio in dB.
+            crest_factor_db (float): Per-channel peak-to-RMS ratio in dB, averaged over
+                active channels.
+            dc_offset_db (float): DC offset removed at load, in dBFS (informational).
         """
         metrics: dict = {}
 
@@ -57,9 +60,13 @@ class LoudnessAnalyzer(AnalyzerBase):
         except Exception:
             metrics["loudness_range_lu"] = None
 
-        # Sample peak in dBFS
+        # Sample peak in dBFS — measured on the delivered waveform (DC included),
+        # since a DC offset consumes real headroom. AudioData.raw_sample_peak holds
+        # the pre-DC-removal peak; hand-built AudioData (tests) has no raw peak, so
+        # use the DC-free sample peak there.
         peak_linear = float(np.max(np.abs(audio.samples)))
-        sample_peak_db = 20.0 * np.log10(peak_linear + 1e-10)
+        headroom_peak = audio.raw_sample_peak if audio.raw_sample_peak is not None else peak_linear
+        sample_peak_db = 20.0 * np.log10(headroom_peak + 1e-10)
         metrics["sample_peak_dbfs"] = round(float(sample_peak_db), 1)
 
         # True peak via ffmpeg; fall back to sample peak when ffmpeg is unavailable.
@@ -74,12 +81,23 @@ class LoudnessAnalyzer(AnalyzerBase):
         rms_db = 20.0 * np.log10(rms_linear + 1e-10)
         metrics["rms_db"] = round(float(rms_db), 1)
 
-        # Crest factor: undefined for silence
-        if peak_linear < 1e-8:
+        # DC offset removed at load — reported so the user knows their converter/plugin adds one
+        if audio.dc_offset is not None:
+            dc_db = 20.0 * np.log10(float(np.max(np.abs(audio.dc_offset))) + 1e-10)
+            metrics["dc_offset_db"] = round(float(dc_db), 1)
+
+        # Crest factor per channel (peak vs RMS of the SAME channel), averaged over
+        # active channels — pooling channels understates RMS for panned content and
+        # inflates crest by up to 3 dB. Undefined for silence.
+        per_channel_ms = np.mean(audio.samples**2, axis=0)
+        active = per_channel_ms > 1e-16
+        if peak_linear < 1e-8 or not np.any(active):
             metrics["crest_factor_db"] = None
         else:
-            crest_db = float(sample_peak_db) - float(rms_db)
-            metrics["crest_factor_db"] = round(float(crest_db), 1)
+            ch_peaks = np.max(np.abs(audio.samples), axis=0)[active]
+            ch_rms = np.sqrt(per_channel_ms[active])
+            crest_db = float(np.mean(20.0 * np.log10((ch_peaks + 1e-10) / (ch_rms + 1e-10))))
+            metrics["crest_factor_db"] = round(crest_db, 1)
 
         # PLR (Peak-to-Loudness Ratio): over-compression indicator
         if metrics.get("true_peak_dbtp") is not None and metrics["integrated_lufs"] is not None:

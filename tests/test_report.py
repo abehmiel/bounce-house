@@ -451,7 +451,7 @@ class TestStrictJson:
         data = self._strict_loads(capsys.readouterr().out)
         # Silence → integrated LUFS is -inf internally → must serialize as null
         assert data["loudness"]["integrated_lufs"] is None
-        assert data["schema_version"] == 1
+        assert data["schema_version"] == 2
 
     def test_dir_json_is_strict_with_silent_file(self, tmp_path, capsys):
         import numpy as np
@@ -463,7 +463,7 @@ class TestStrictJson:
         sf.write(str(tmp_path / "silent.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
         main(["dir", str(tmp_path), "--json"])
         data = self._strict_loads(capsys.readouterr().out)
-        assert data["schema_version"] == 1
+        assert data["schema_version"] == 2
         assert data["files"][0]["loudness"]["integrated_lufs"] is None
 
     def test_sanitize_replaces_non_finite(self):

@@ -115,3 +115,69 @@ def tmp_short_wav(tmp_path) -> Path:
     path = tmp_path / "short.wav"
     sf.write(str(path), stereo, sr, subtype="PCM_16")
     return path
+
+
+def _pink_noise(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Pink (1/f power density) noise via spectral shaping, peak-normalized to 1.0."""
+    white = rng.standard_normal(n)
+    spec = np.fft.rfft(white)
+    freqs = np.fft.rfftfreq(n, d=1.0 / 44100)
+    freqs[0] = freqs[1]  # avoid divide-by-zero at DC
+    spec /= np.sqrt(freqs)
+    pink = np.fft.irfft(spec, n)
+    return pink / np.max(np.abs(pink))
+
+
+@pytest.fixture
+def tmp_pink_wav(tmp_path) -> Path:
+    """8-second stereo pink noise at ~-3 dBFS peak — known 1/f density for spectral theory tests."""
+    sr = 44100
+    rng = np.random.default_rng(42)
+    left = 0.7 * _pink_noise(sr * 8, rng)
+    right = 0.7 * _pink_noise(sr * 8, rng)  # independent channels
+    stereo = np.column_stack([left, right])
+    path = tmp_path / "pink.wav"
+    sf.write(str(path), stereo, sr, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_mixlike_wav(tmp_path) -> Path:
+    """8-second deterministic pseudo-music: kick + bass + chord stack + hat bursts."""
+    sr = 44100
+    rng = np.random.default_rng(42)
+    n = sr * 8
+    t = np.arange(n) / sr
+
+    kick = np.zeros(n)
+    for start in np.arange(0, 8, 0.5):
+        idx = int(start * sr)
+        seg = np.arange(min(int(0.15 * sr), n - idx))
+        kick[idx : idx + len(seg)] += np.sin(2 * np.pi * 55 * seg / sr) * np.exp(-seg / (0.03 * sr))
+
+    bass = 0.3 * np.sin(2 * np.pi * 110 * t)
+
+    chord = np.zeros(n)
+    for f0 in (220.0, 277.18, 329.63):  # A major triad
+        for h in range(1, 6):
+            chord += np.sin(2 * np.pi * f0 * h * t + rng.uniform(0, 2 * np.pi)) / h
+    chord *= 0.08
+
+    # lead melody in the mid band (500-2000 Hz) so the mix is not hollow there
+    lead = 0.15 * np.sin(2 * np.pi * 660 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 2 * t))
+
+    hats = np.zeros(n)
+    noise = rng.standard_normal(n)
+    for start in np.arange(0.125, 8, 0.25):
+        idx = int(start * sr)
+        seg = np.arange(min(int(0.05 * sr), n - idx))
+        hats[idx : idx + len(seg)] += noise[idx : idx + len(seg)] * np.exp(-seg / (0.01 * sr))
+    hats = 0.3 * np.diff(hats, prepend=0.0)  # differentiator ≈ crude high-pass
+
+    left = 0.8 * kick + bass + chord + lead + hats
+    right = 0.8 * kick + bass + 0.9 * chord + lead + 1.1 * hats
+    stereo = np.column_stack([left, right])
+    stereo *= 0.89 / np.max(np.abs(stereo))  # peak ≈ -1 dBFS
+    path = tmp_path / "mixlike.wav"
+    sf.write(str(path), stereo, sr, subtype="PCM_16")
+    return path

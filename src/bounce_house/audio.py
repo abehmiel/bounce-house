@@ -16,6 +16,10 @@ class AudioData:
     samples: np.ndarray  # shape: (num_samples, num_channels), float64
     sample_rate: int
     filepath: Path
+    dc_offset: np.ndarray | None = None  # per-channel mean removed at load, shape (channels,)
+    # Peak of the delivered waveform BEFORE DC removal — the real headroom ceiling.
+    # None for hand-built AudioData; analyzers fall back to the (DC-free) sample peak then.
+    raw_sample_peak: float | None = None
 
     @property
     def channels(self) -> int:
@@ -49,4 +53,17 @@ def load_audio(path: Path) -> AudioData:
     if samples.ndim == 1:
         samples = samples[:, np.newaxis]
 
-    return AudioData(samples=samples, sample_rate=sample_rate, filepath=path)
+    # Capture the delivered peak before DC removal — this is the true headroom
+    # ceiling for clipping/true-peak checks. DC is then removed so RMS, crest,
+    # and spectral measurements run on the audio content, not the offset.
+    raw_sample_peak = float(np.max(np.abs(samples)))
+    dc_offset = samples.mean(axis=0)
+    samples = samples - dc_offset
+
+    return AudioData(
+        samples=samples,
+        sample_rate=sample_rate,
+        filepath=path,
+        dc_offset=dc_offset,
+        raw_sample_peak=raw_sample_peak,
+    )

@@ -156,3 +156,16 @@ class TestRulesWithProfile:
         )
         assessments = evaluate_rules(result)
         assert len(assessments) >= 1
+
+
+class TestCorrelationThresholds:
+    def test_full_mix_correlation_grading(self):
+        from bounce_house.profiles import _correlation_status
+
+        assert _correlation_status(0.85) == "pass"
+        assert _correlation_status(0.5) == "pass"
+        # +0.3 has substantial side energy / mono-loss risk for a full mix
+        assert _correlation_status(0.3) == "warn"
+        assert _correlation_status(0.1) == "warn"
+        assert _correlation_status(0.05) == "fail"
+        assert _correlation_status(-0.2) == "fail"

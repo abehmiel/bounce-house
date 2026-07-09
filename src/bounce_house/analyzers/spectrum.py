@@ -52,16 +52,30 @@ class SpectrumAnalyzer(AnalyzerBase):
         S = np.abs(librosa.stft(y, n_fft=n_fft)) ** 2
         freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
 
+        # Band energies relative to the file's own broadband density — this makes
+        # values comparable across files and levels ("+6 dB above the mix average"),
+        # and makes reference band differences independent of overall loudness.
+        audible = (freqs >= 20) & (freqs < 20000)
+        broadband_db = float(10 * np.log10(np.mean(S[audible, :]) + 1e-10))
+
         band_energies = {}
         for band_name, lo, hi in BANDS:
             mask = (freqs >= lo) & (freqs < hi)
             if np.any(mask):
-                energy_db = float(10 * np.log10(np.mean(S[mask, :]) + 1e-10))
+                energy_db = float(10 * np.log10(np.mean(S[mask, :]) + 1e-10)) - broadband_db
             else:
                 energy_db = -100.0
             band_energies[band_name] = round(energy_db, 1)
 
         metrics["bands"] = band_energies
+
+        # Tilt ratios between bands — level- and normalization-independent,
+        # used by the muddy/harsh/thin diagnostic patterns
+        metrics["band_ratios"] = {
+            "low_mid_minus_mid": round(band_energies["low_mid"] - band_energies["mid"], 1),
+            "bass_minus_mid": round(band_energies["bass"] - band_energies["mid"], 1),
+            "upper_mid_minus_mid": round(band_energies["upper_mid"] - band_energies["mid"], 1),
+        }
 
         return AnalysisResult(module=self.name, metrics=metrics)
 

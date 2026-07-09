@@ -26,6 +26,7 @@ class TestMetricDocStructure:
             "rms_db",
             "crest_factor_db",
             "plr_db",
+            "dc_offset_db",
         }
         assert set(loudness_keys) == expected
 
@@ -57,7 +58,7 @@ class TestMetricDocStructure:
 
     def test_all_perceptual_metrics_documented(self):
         perceptual_keys = MODULES["perceptual"]
-        expected = {"brightness", "warmth"}
+        expected = {"brightness", "warmth", "timbral_brightness", "timbral_warmth"}
         assert set(perceptual_keys) == expected
 
     def test_every_metric_key_exists_in_METRICS(self):

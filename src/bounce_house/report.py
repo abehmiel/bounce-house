@@ -49,6 +49,7 @@ _METRIC_NAMES = {
     "rms_db": "RMS Level",
     "crest_factor_db": "Crest Factor",
     "plr_db": "PLR",
+    "dc_offset_db": "DC Offset",
     "centroid_hz": "Centroid",
     "bandwidth_hz": "Bandwidth",
     "rolloff_hz": "Rolloff (85%)",
@@ -63,6 +64,8 @@ _METRIC_NAMES = {
     "balance_db": "Balance",
     "brightness": "Brightness",
     "warmth": "Warmth",
+    "timbral_brightness": "Brightness (timbral)",
+    "timbral_warmth": "Warmth (timbral)",
     "hardness": "Hardness",
     "roughness": "Roughness",
     "tuning_deviation_cents": "Tuning Deviation",
@@ -73,6 +76,8 @@ _METRIC_NAMES = {
     "pitch_drift_trend_cents_per_min": "Pitch Trend",
     "chroma_sharpness": "Chroma Sharpness",
 }
+
+_SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
 
 
 def _sanitize(obj: Any) -> Any:
@@ -144,7 +149,13 @@ def format_terminal(
         for key, value in result.metrics.items():
             if key in _SKIP_METRICS:
                 continue
-            if key in ("bands", "band_differences", "reference_bands", "frequency_width"):
+            if key in (
+                "bands",
+                "band_differences",
+                "reference_bands",
+                "frequency_width",
+                "band_ratios",
+            ):
                 continue
             # Skip reference/diff keys in main display
             if key.startswith("reference_") or key.endswith("_difference"):
@@ -175,7 +186,7 @@ def format_terminal(
                     if abs(diff) > 3.0:
                         color = _YELLOW if abs(diff) <= 6.0 else _RED
                         diff_str = f"  {color}{diff:+.1f} dB vs ref{_RESET}"
-                lines.append(f"  {label:<22} {energy:>8.1f} dB{diff_str}")
+                lines.append(f"  {label:<22} {energy:>8.1f} dB rel{diff_str}")
 
         # Frequency-dependent stereo width
         if freq_width:
@@ -237,7 +248,7 @@ def format_json(
         all assessments, and a summary of warnings/failures.
     """
     output: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": _SCHEMA_VERSION,
         "file": filename,
         "format": file_info,
         "stage": stage,
@@ -518,7 +529,7 @@ def format_dir_json(
     skipped = [{"file": name, "error": message} for name, message in (errors or [])]
 
     output = {
-        "schema_version": 1,
+        "schema_version": _SCHEMA_VERSION,
         "directory": directory,
         "stage": stage,
         "files": files_output,

@@ -1,5 +1,8 @@
 """Tests for loudness and dynamics analyzer."""
 
+import numpy as np
+import pytest
+
 from bounce_house.analyzers.loudness import LoudnessAnalyzer
 from bounce_house.audio import load_audio
 
@@ -126,3 +129,73 @@ class TestShortFile:
         result = LoudnessAnalyzer().compare(audio, reference)
         assert result.metrics["integrated_lufs"] is None
         assert "lufs_difference" not in result.metrics
+
+
+class TestDcOffsetMetric:
+    def test_dc_offset_metric_and_clean_rms(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "dc.wav"))
+        # DC no longer inflates RMS: 0.1 sine → RMS 0.0707 → -23.0 dB
+        assert result.metrics["rms_db"] == pytest.approx(-23.0, abs=0.5)
+        # The removed offset is reported: 20*log10(0.3) ≈ -10.5 dBFS
+        assert result.metrics["dc_offset_db"] == pytest.approx(-10.5, abs=0.3)
+
+    def test_clean_file_reports_negligible_dc(self, tmp_wav):
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
+        assert result.metrics["dc_offset_db"] < -60.0
+
+    def test_peak_reflects_raw_waveform_without_ffmpeg(self, tmp_path, monkeypatch):
+        """Peak/headroom checks must see the delivered waveform, DC included.
+
+        DC removal happens for RMS/crest/spectral, but the peak a converter
+        actually outputs includes the offset. On machines without ffmpeg the
+        true-peak fallback is the sample peak, so both must report the raw
+        peak or a hot DC-heavy file silently reads as safe.
+        """
+        import soundfile as sf
+
+        # ffmpeg absent → _measure_true_peak returns None → true_peak falls back to sample peak
+        monkeypatch.setattr("shutil.which", lambda x: None)
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        # 0.3 DC + 0.1 sine: raw peak ≈ 0.4 (-7.96 dBFS); DC-free peak ≈ 0.1 (-20 dBFS)
+        signal = 0.3 + 0.1 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "dc.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "dc.wav"))
+
+        # Raw delivered peak 20*log10(0.4) ≈ -7.96 dBFS — NOT the DC-free -20 dBFS
+        assert result.metrics["sample_peak_dbfs"] == pytest.approx(-7.96, abs=0.2)
+        assert result.metrics["true_peak_available"] is False
+        # Fallback true peak inherits the raw sample peak, not the DC-suppressed one
+        assert result.metrics["true_peak_dbtp"] == pytest.approx(-7.96, abs=0.2)
+
+
+class TestPerChannelCrest:
+    def test_hard_panned_sine_crest_is_3db(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        left = 0.5 * np.sin(2 * np.pi * 440 * t)
+        right = np.zeros_like(left)  # hard-panned: silent right channel
+        sf.write(str(tmp_path / "panned.wav"), np.column_stack([left, right]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "panned.wav"))
+        # A sine's true crest factor is 20*log10(sqrt(2)) = 3.01 dB; the silent
+        # channel must not dilute it (pooled math reported 6.0 dB here)
+        assert result.metrics["crest_factor_db"] == pytest.approx(3.0, abs=0.2)
+
+    def test_centered_sine_crest_unchanged(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        sine = 0.5 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "center.wav"), np.column_stack([sine, sine]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "center.wav"))
+        assert result.metrics["crest_factor_db"] == pytest.approx(3.0, abs=0.2)

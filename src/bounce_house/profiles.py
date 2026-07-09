@@ -72,9 +72,9 @@ def _plr_status(value: float) -> str:
 
 
 def _correlation_status(value: float) -> str:
-    if value > 0.3:
+    if value >= 0.5:
         return "pass"
-    if value >= 0.0:
+    if value >= 0.1:
         return "warn"
     return "fail"
 
@@ -280,7 +280,7 @@ _MASTER_PATTERNS: list[dict] = [
         "conditions": [
             ("spectrum.centroid_hz", "<", 1500),
             ("perceptual.warmth", ">", 0.25),
-            ("spectrum.bands.low_mid", ">", -12.0),
+            ("spectrum.band_ratios.low_mid_minus_mid", ">", 8.0),
             ("perceptual.brightness", "<", 0.08),
         ],
         "min_match": 2,
@@ -299,7 +299,7 @@ _MASTER_PATTERNS: list[dict] = [
             ("spectrum.centroid_hz", ">", 2800),
             ("perceptual.brightness", ">", 0.20),
             ("perceptual.warmth", "<", 0.10),
-            ("spectrum.bands.upper_mid", ">", -12.0),
+            ("spectrum.band_ratios.upper_mid_minus_mid", ">", 0.0),
         ],
         "min_match": 2,
         "severity": "warn",
@@ -316,8 +316,8 @@ _MASTER_PATTERNS: list[dict] = [
         "name": "Thin / Weak Mix",
         "conditions": [
             ("perceptual.warmth", "<", 0.08),
-            ("spectrum.bands.bass", "<", -28.0),
-            ("spectrum.bands.low_mid", "<", -25.0),
+            ("spectrum.band_ratios.bass_minus_mid", "<", 2.0),
+            ("spectrum.band_ratios.low_mid_minus_mid", "<", 2.0),
             ("spectrum.centroid_hz", ">", 2500),
         ],
         "min_match": 2,
@@ -404,7 +404,7 @@ _MASTER_PATTERNS: list[dict] = [
         "pattern": "detuned_mix",
         "name": "Detuned Mix",
         "conditions": [
-            ("tuning.tuning_deviation_cents", ">", 15),
+            ("tuning.tuning_deviation_cents", "abs>", 15),
             ("tuning.pitch_drift_range_cents", ">", 15),
             ("tuning.chroma_sharpness", "<", 0.25),
         ],

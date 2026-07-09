@@ -13,11 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` emitted non-standard `NaN`/`-Infinity`; non-finite values now serialize as `null`
 - `dir` returned exit `0` even when some files were skipped; a skipped file now forces exit ≥1 and appears in the JSON `skipped` array
 - README installation instructions did not work as written
+- Crest factor measured per channel — hard-panned content no longer reads up to 3 dB too dynamic
+- Reference band comparison no longer reports overall loudness differences as per-band tonal problems
+- Installing the `perceptual` extra no longer breaks the muddy/harsh/thin diagnostics (timbral scores now namespaced)
+- The detuned-mix diagnostic now fires for flat tunings, not only sharp ones
+- DC offset is removed before analysis and reported as a new `dc_offset_db` metric
+- Sample peak is measured on the delivered waveform (DC included) so a DC-heavy file no longer under-reports headroom when ffmpeg (true peak) is unavailable
 
 ### Changed
 - `analyze`, `compare`, and single-module commands now exit 0/1/2 (pass/warn/fail) like `dir`
 - ANSI color is applied only on TTY stdout; `NO_COLOR` and `FORCE_COLOR` are respected
-- JSON output now carries `"schema_version": 1`
+- Band energies are now dB relative to the file's broadband average (JSON `schema_version` is now 2)
+- Phase correlation grading retuned for full mixes: pass ≥ +0.5, warn +0.1 to +0.5, fail below +0.1
+- New `band_ratios` metrics (low_mid−mid, bass−mid, upper_mid−mid) drive the spectral diagnostics
 
 ### Added
 - Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)

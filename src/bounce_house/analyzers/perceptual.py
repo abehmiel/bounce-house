@@ -27,10 +27,12 @@ class PerceptualAnalyzer(AnalyzerBase):
     def analyze(self, audio: AudioData) -> AnalysisResult:
         metrics: dict = {"timbral_models_available": _HAS_TIMBRAL}
 
+        # Proxy ratios are ALWAYS computed — diagnostics thresholds are calibrated
+        # to their 0-1 scale. timbral_models scores use different scales entirely
+        # and are exposed under separate keys.
+        metrics.update(self._analyze_proxy(audio))
         if _HAS_TIMBRAL:
             metrics.update(self._analyze_timbral(audio))
-        else:
-            metrics.update(self._analyze_proxy(audio))
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
@@ -51,13 +53,13 @@ class PerceptualAnalyzer(AnalyzerBase):
         filepath = str(audio.filepath)
         results = {}
         try:
-            results["brightness"] = round(timbral_models.timbral_brightness(filepath), 4)
+            results["timbral_brightness"] = round(timbral_models.timbral_brightness(filepath), 4)
         except Exception:
-            results["brightness"] = None
+            results["timbral_brightness"] = None
         try:
-            results["warmth"] = round(timbral_models.timbral_warmth(filepath), 4)
+            results["timbral_warmth"] = round(timbral_models.timbral_warmth(filepath), 4)
         except Exception:
-            results["warmth"] = None
+            results["timbral_warmth"] = None
         try:
             results["hardness"] = round(timbral_models.timbral_hardness(filepath), 4)
         except Exception:

@@ -33,6 +33,7 @@ _OPS = {
     "<=": op.le,
     ">=": op.ge,
     "==": op.eq,
+    "abs>": lambda value, threshold: abs(value) > threshold,
 }
 
 
