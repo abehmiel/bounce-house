@@ -7,7 +7,8 @@ import numpy as np
 from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
 
-# -0.1 dBFS: common clip-detection ceiling; DC is already removed at load
+# -0.1 dBFS: common clip-detection ceiling. Clipping is a delivered-waveform
+# property, so clip-run detection reads the pre-DC waveform (see analyze()).
 _CLIP_THRESHOLD = 10 ** (-0.1 / 20)
 _MIN_CLIP_RUN = 3
 # -60 dBFS RMS in 10 ms windows counts as silence for edge detection
@@ -15,15 +16,32 @@ _SILENCE_THRESHOLD = 10 ** (-60 / 20)
 _SILENCE_WINDOW_SEC = 0.01
 
 
-def _clip_runs(channel: np.ndarray) -> list[int]:
-    """Lengths of consecutive-sample runs at/above the clip threshold."""
+def _clip_intervals(channel: np.ndarray) -> list[tuple[int, int]]:
+    """(start, end) sample-index intervals of consecutive runs at/above the clip
+    threshold, filtered to runs of at least _MIN_CLIP_RUN samples."""
     clipped = np.abs(channel) >= _CLIP_THRESHOLD
     if not np.any(clipped):
         return []
     edges = np.diff(clipped.astype(np.int8), prepend=0, append=0)
     starts = np.flatnonzero(edges == 1)
     ends = np.flatnonzero(edges == -1)
-    return [int(e - s) for s, e in zip(starts, ends, strict=True) if e - s >= _MIN_CLIP_RUN]
+    return [(int(s), int(e)) for s, e in zip(starts, ends, strict=True) if e - s >= _MIN_CLIP_RUN]
+
+
+def _merge_intervals(intervals: list[tuple[int, int]]) -> int:
+    """Count merged time-overlapping/adjacent (start, end) intervals as single events."""
+    if not intervals:
+        return 0
+    ordered = sorted(intervals)
+    count = 1
+    current_end = ordered[0][1]
+    for start, end in ordered[1:]:
+        if start <= current_end:  # overlapping or adjacent in time -> same event
+            current_end = max(current_end, end)
+        else:
+            count += 1
+            current_end = end
+    return count
 
 
 class QcAnalyzer(AnalyzerBase):
@@ -34,11 +52,18 @@ class QcAnalyzer(AnalyzerBase):
     def analyze(self, audio: AudioData) -> AnalysisResult:
         metrics: dict = {}
 
-        runs: list[int] = []
+        # Clip detection reads the delivered pre-DC waveform — clipping is a
+        # property of what was actually printed, not the DC-free analysis signal.
+        waveform = audio.raw_samples if audio.raw_samples is not None else audio.samples
+        all_intervals: list[tuple[int, int]] = []
+        longest_run = 0
         for ch in range(audio.channels):
-            runs.extend(_clip_runs(audio.samples[:, ch]))
-        metrics["clip_events"] = len(runs)
-        metrics["longest_clip_run"] = max(runs) if runs else 0
+            intervals = _clip_intervals(waveform[:, ch])
+            all_intervals.extend(intervals)
+            for start, end in intervals:
+                longest_run = max(longest_run, end - start)
+        metrics["clip_events"] = _merge_intervals(all_intervals)
+        metrics["longest_clip_run"] = longest_run
 
         window = max(1, int(audio.sample_rate * _SILENCE_WINDOW_SEC))
         # Per-window RMS over the loudest channel mix (max of channels, conservative)

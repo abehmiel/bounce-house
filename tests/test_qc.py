@@ -25,8 +25,12 @@ class TestClipping:
         signal = np.clip(1.5 * np.sin(2 * np.pi * 100 * t), -1.0, 1.0)  # hard-clipped sine
         path = _write(tmp_path, "clipped.wav", np.column_stack([signal, signal]))
         result = QcAnalyzer().analyze(load_audio(path))
-        # 100 Hz clipped sine: 200 flat tops/second, each a run of many samples
-        assert result.metrics["clip_events"] > 100
+        # 100 Hz clipped sine: 100 positive + 100 negative flat-tops/second = 200
+        # merged clip events (identical L/R runs merge into one event each, so
+        # this is unchanged from the per-channel count of a single channel —
+        # before the stereo-merge fix this signal reported 400, double-counting
+        # every shared event across L and R).
+        assert result.metrics["clip_events"] == 200
         assert result.metrics["longest_clip_run"] >= 10
 
     def test_single_full_scale_sample_is_not_an_event(self, tmp_path):
@@ -36,6 +40,37 @@ class TestClipping:
         path = _write(tmp_path, "spike.wav", np.column_stack([signal, signal]))
         result = QcAnalyzer().analyze(load_audio(path))
         assert result.metrics["clip_events"] == 0
+
+    def test_clip_detection_reads_delivered_pre_dc_waveform(self, tmp_path):
+        # One-sided clip at the positive rail plus a strong positive DC offset.
+        # DC removal alone would push the abs-peak of the post-DC waveform
+        # below the clip threshold, hiding a clip that is genuinely present
+        # in the delivered (pre-DC) file.
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        raw = 1.2 * np.sin(2 * np.pi * 100 * t) + 0.85
+        delivered = np.minimum(raw, 1.0)
+        path = _write(tmp_path, "biased_clip.wav", np.column_stack([delivered, delivered]))
+        result = QcAnalyzer().analyze(load_audio(path))
+        assert result.metrics["clip_events"] > 0
+        assert result.metrics["longest_clip_run"] >= 3
+
+    def test_stereo_shared_transients_count_once_not_twice(self, tmp_path):
+        # 15 identical short clipped bursts placed at the same sample positions
+        # in both channels must count as 15 events (one per time-position),
+        # not 30 (double-counted per channel).
+        sr = 44100
+        n = sr
+        signal = np.zeros(n)
+        burst_len = 5
+        n_bursts = 15
+        gap = n // (n_bursts + 1)
+        for i in range(1, n_bursts + 1):
+            start = i * gap
+            signal[start : start + burst_len] = 1.0
+        path = _write(tmp_path, "shared_bursts.wav", np.column_stack([signal, signal]))
+        result = QcAnalyzer().analyze(load_audio(path))
+        assert result.metrics["clip_events"] == 15
 
 
 class TestEdgeSilence:
