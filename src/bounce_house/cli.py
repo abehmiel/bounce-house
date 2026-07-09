@@ -20,11 +20,6 @@ from rich.progress import (
 )
 
 from bounce_house.analyzers.base import AnalysisResult
-from bounce_house.analyzers.loudness import LoudnessAnalyzer
-from bounce_house.analyzers.perceptual import PerceptualAnalyzer
-from bounce_house.analyzers.spectrum import SpectrumAnalyzer
-from bounce_house.analyzers.stereo import StereoAnalyzer
-from bounce_house.analyzers.tuning import TuningAnalyzer
 from bounce_house.audio import load_audio
 from bounce_house.diagnostics import evaluate_diagnostics
 from bounce_house.metric_docs import resolve_topic
@@ -61,15 +56,25 @@ def _print_report(text: str) -> None:
     print(text)
 
 
-ALL_ANALYZERS = [
-    LoudnessAnalyzer(),
-    SpectrumAnalyzer(),
-    StereoAnalyzer(),
-    PerceptualAnalyzer(),
-    TuningAnalyzer(),
-]
+# Analyzer subcommand names — must not import the analyzers (librosa is slow to load)
+MODULE_COMMANDS: tuple[str, ...] = ("loudness", "spectrum", "stereo", "perceptual", "tuning")
 
-ANALYZER_MAP = {a.name: a for a in ALL_ANALYZERS}
+
+def _load_analyzers() -> list:
+    """Import and instantiate all analyzers. Deferred: pulls the librosa/numba chain."""
+    from bounce_house.analyzers.loudness import LoudnessAnalyzer
+    from bounce_house.analyzers.perceptual import PerceptualAnalyzer
+    from bounce_house.analyzers.spectrum import SpectrumAnalyzer
+    from bounce_house.analyzers.stereo import StereoAnalyzer
+    from bounce_house.analyzers.tuning import TuningAnalyzer
+
+    return [
+        LoudnessAnalyzer(),
+        SpectrumAnalyzer(),
+        StereoAnalyzer(),
+        PerceptualAnalyzer(),
+        TuningAnalyzer(),
+    ]
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -101,14 +106,15 @@ def create_parser() -> argparse.ArgumentParser:
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # Individual module subcommands
-    for name, desc in [
-        ("loudness", "Loudness and dynamics analysis"),
-        ("spectrum", "Spectral analysis"),
-        ("stereo", "Stereo imaging and phase analysis"),
-        ("perceptual", "Perceptual quality analysis"),
-        ("tuning", "Tuning and pitch stability analysis"),
-    ]:
-        sub = subparsers.add_parser(name, help=desc, parents=[stage_parent])
+    module_descriptions = {
+        "loudness": "Loudness and dynamics analysis",
+        "spectrum": "Spectral analysis",
+        "stereo": "Stereo imaging and phase analysis",
+        "perceptual": "Perceptual quality analysis",
+        "tuning": "Tuning and pitch stability analysis",
+    }
+    for name in MODULE_COMMANDS:
+        sub = subparsers.add_parser(name, help=module_descriptions[name], parents=[stage_parent])
         sub.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
         sub.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -176,7 +182,7 @@ def _analyze_file(
                 "unreliable until both are at the same rate."
             )
     if analyzers is None:
-        analyzers = ALL_ANALYZERS
+        analyzers = _load_analyzers()
     results: list[AnalysisResult] = []
     for analyzer in analyzers:
         if on_module:
@@ -211,7 +217,7 @@ def _run_analysis(
     profile=None,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
-    active_analyzers = analyzers if analyzers is not None else ALL_ANALYZERS
+    active_analyzers = analyzers if analyzers is not None else _load_analyzers()
     try:
         with Progress(
             SpinnerColumn(),
@@ -287,6 +293,7 @@ def _run_dir(
         print(f"Error: No audio files found in {directory}", file=sys.stderr)
         return 1
 
+    analyzer_list = _load_analyzers()
     file_data: list[dict] = []
     errors: list[tuple[str, str]] = []
 
@@ -300,11 +307,11 @@ def _run_dir(
         transient=True,
     ) as progress:
         file_task = progress.add_task("Analyzing files", total=len(wav_files))
-        module_task = progress.add_task("Modules", total=len(ALL_ANALYZERS), visible=False)
+        module_task = progress.add_task("Modules", total=len(analyzer_list), visible=False)
 
         for wav_path in wav_files:
             progress.update(file_task, description=f"Analyzing {wav_path.name}")
-            progress.update(module_task, completed=0, total=len(ALL_ANALYZERS), visible=True)
+            progress.update(module_task, completed=0, total=len(analyzer_list), visible=True)
 
             def on_module(name: str):
                 progress.update(module_task, description=f"  {name}")
@@ -312,7 +319,11 @@ def _run_dir(
 
             try:
                 data = _analyze_file(
-                    str(wav_path), reference_path, on_module=on_module, profile=profile
+                    str(wav_path),
+                    reference_path,
+                    analyzers=analyzer_list,
+                    on_module=on_module,
+                    profile=profile,
                 )
                 file_data.append(data)
             except (FileNotFoundError, ValueError) as e:
@@ -392,8 +403,8 @@ def main(argv: list[str] | None = None) -> int:
             use_json,
             profile=profile,
         )
-    elif args.command in ANALYZER_MAP:
-        analyzer = ANALYZER_MAP[args.command]
+    elif args.command in MODULE_COMMANDS:
+        analyzer = next(a for a in _load_analyzers() if a.name == args.command)
         return _run_analysis(args.file, None, [analyzer], use_json, profile=profile)
     else:
         parser.print_help()

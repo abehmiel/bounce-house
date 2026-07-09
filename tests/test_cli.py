@@ -5,7 +5,7 @@ import json
 import numpy as np
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
-from bounce_house.cli import ALL_ANALYZERS, _analyze_file, _dir_exit_code, create_parser, main
+from bounce_house.cli import _analyze_file, _dir_exit_code, _load_analyzers, create_parser, main
 from bounce_house.profiles import get_profile
 
 
@@ -154,15 +154,17 @@ class TestReferenceSampleRateGuard:
 class TestAnalyzeFile:
     def test_returns_structured_data(self, tmp_wav):
         data = _analyze_file(str(tmp_wav))
+        analyzers = _load_analyzers()
         assert "results" in data
         assert "file_info" in data
         assert "diagnoses" in data
         assert "path" in data
-        assert len(data["results"]) == len(ALL_ANALYZERS)
+        assert len(data["results"]) == len(analyzers)
 
     def test_with_reference(self, tmp_wav, tmp_reference_wav):
         data = _analyze_file(str(tmp_wav), reference_path=str(tmp_reference_wav))
-        assert len(data["results"]) == len(ALL_ANALYZERS)
+        analyzers = _load_analyzers()
+        assert len(data["results"]) == len(analyzers)
 
     def test_file_info_has_expected_keys(self, tmp_wav):
         data = _analyze_file(str(tmp_wav))
@@ -171,7 +173,8 @@ class TestAnalyzeFile:
         assert "duration" in data["file_info"]
 
     def test_subset_analyzers(self, tmp_wav):
-        data = _analyze_file(str(tmp_wav), analyzers=[ALL_ANALYZERS[0]])
+        analyzers = _load_analyzers()
+        data = _analyze_file(str(tmp_wav), analyzers=[analyzers[0]])
         assert len(data["results"]) == 1
 
 
@@ -689,3 +692,17 @@ class TestAudioDiscovery:
         (tmp_path / "notes.txt").write_text("not audio")
         files = _discover_audio_files(str(tmp_path), recursive=False)
         assert [f.name for f in files] == ["a.wav", "b.flac", "c.aiff"]
+
+
+class TestLazyImports:
+    def test_cli_import_does_not_pull_librosa(self):
+        import subprocess
+        import sys
+
+        code = (
+            "import sys; import bounce_house.cli; "
+            "assert 'librosa' not in sys.modules, 'librosa imported eagerly'; "
+            "assert 'numba' not in sys.modules, 'numba imported eagerly'"
+        )
+        proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        assert proc.returncode == 0, proc.stderr
