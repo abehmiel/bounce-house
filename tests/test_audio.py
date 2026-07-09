@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from bounce_house.audio import AudioData, load_audio
 
@@ -62,3 +63,28 @@ def test_audio_data_is_stereo(tmp_wav, tmp_mono_wav):
     mono = load_audio(tmp_mono_wav)
     assert stereo.is_stereo is True
     assert mono.is_stereo is False
+
+
+class TestRealisticFixtures:
+    def test_mixlike_fixture_analyzes_end_to_end(self, tmp_mixlike_wav):
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+
+        data = _analyze_file(str(tmp_mixlike_wav), profile=get_profile("master"))
+        loudness = next(r for r in data["results"] if r.module == "loudness")
+        # Music-shaped signal: sane loudness and dynamics, no crash anywhere
+        assert -30.0 < loudness.metrics["integrated_lufs"] < -3.0
+        assert 3.0 < loudness.metrics["crest_factor_db"] < 25.0
+
+    def test_pink_fixture_is_deterministic(self, tmp_pink_wav):
+        from bounce_house.audio import load_audio
+        from tests.conftest import _pink_noise
+
+        audio = load_audio(tmp_pink_wav)
+        assert audio.channels == 2
+        assert audio.duration == pytest.approx(8.0, abs=0.01)
+        assert float(np.max(np.abs(audio.samples))) > 0.5
+        # Seeded generator produces identical noise on every invocation
+        a = _pink_noise(4096, np.random.default_rng(42))
+        b = _pink_noise(4096, np.random.default_rng(42))
+        assert np.array_equal(a, b)
