@@ -22,6 +22,7 @@ from rich.progress import (
 from bounce_house.analyzers.base import AnalysisResult
 from bounce_house.audio import load_audio
 from bounce_house.diagnostics import evaluate_diagnostics
+from bounce_house.genres import GENRE_NAMES  # top-level import is fine: genres.py is light
 from bounce_house.metric_docs import resolve_topic
 from bounce_house.profiles import get_profile
 from bounce_house.report import (
@@ -102,6 +103,12 @@ def create_parser() -> argparse.ArgumentParser:
         help=(
             "Analysis stage: 'master' (default) or 'mix' (pre-master mix with adjusted thresholds)"
         ),
+    )
+    stage_parent.add_argument(
+        "--genre",
+        choices=list(GENRE_NAMES),
+        default=None,
+        help="Calibrate targets for a genre (provisional targets pending real-song evals)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -225,6 +232,7 @@ def _run_analysis(
     analyzers: list | None = None,
     use_json: bool = False,
     profile=None,
+    genre=None,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
     active_analyzers = analyzers if analyzers is not None else _load_analyzers()
@@ -260,6 +268,7 @@ def _run_analysis(
                 data["file_info"],
                 diagnoses=data["diagnoses"],
                 stage=profile.name,
+                genre=genre,
             )
         )
     else:
@@ -270,6 +279,7 @@ def _run_analysis(
                 data["file_info"],
                 diagnoses=data["diagnoses"],
                 stage=profile.name,
+                genre=genre,
             )
         )
     return _exit_code_for_results(data["results"])
@@ -291,6 +301,7 @@ def _run_dir(
     reference_path: str | None = None,
     use_json: bool = False,
     profile=None,
+    genre=None,
 ) -> int:
     """Analyze all audio files in a directory. Returns exit code."""
     dir_path = Path(directory)
@@ -348,7 +359,7 @@ def _run_dir(
         return 1
 
     if use_json:
-        print(format_dir_json(file_data, directory, errors, stage=profile.name))
+        print(format_dir_json(file_data, directory, errors, stage=profile.name, genre=genre))
     else:
         for data in file_data:
             _print_report(
@@ -358,9 +369,12 @@ def _run_dir(
                     data["file_info"],
                     diagnoses=data["diagnoses"],
                     stage=profile.name,
+                    genre=genre,
                 )
             )
-        _print_report(format_dir_summary(file_data, directory, errors, stage=profile.name))
+        _print_report(
+            format_dir_summary(file_data, directory, errors, stage=profile.name, genre=genre)
+        )
 
     return _batch_exit_code(file_data, errors)
 
@@ -401,8 +415,18 @@ def main(argv: list[str] | None = None) -> int:
     use_json = getattr(args, "json", False)
     profile = get_profile(getattr(args, "stage", "master"))
 
+    genre_name = getattr(args, "genre", None)
+    genre = None
+    if genre_name:
+        from bounce_house.genres import apply_genre, get_genre
+
+        genre = get_genre(genre_name)
+        profile = apply_genre(profile, genre)
+
     if args.command == "analyze" or args.command == "compare":
-        return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
+        return _run_analysis(
+            args.file, args.reference, None, use_json, profile=profile, genre=genre
+        )
     elif args.command == "explain":
         return _run_explain(args.topic, getattr(args, "technical", False))
     elif args.command == "dir":
@@ -412,10 +436,11 @@ def main(argv: list[str] | None = None) -> int:
             getattr(args, "reference", None),
             use_json,
             profile=profile,
+            genre=genre,
         )
     elif args.command in MODULE_COMMANDS:
         analyzer = next(a for a in _load_analyzers() if a.name == args.command)
-        return _run_analysis(args.file, None, [analyzer], use_json, profile=profile)
+        return _run_analysis(args.file, None, [analyzer], use_json, profile=profile, genre=genre)
     else:
         parser.print_help()
         return 1

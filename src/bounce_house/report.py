@@ -101,6 +101,7 @@ def format_terminal(
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format analysis results as rich terminal output.
 
@@ -109,6 +110,7 @@ def format_terminal(
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
         diagnoses: Optional list of Diagnosis objects from the pattern engine.
+        genre: Optional genres.GenreProfile overlay applied to the analysis.
 
     Returns:
         A string with ANSI color codes suitable for terminal display.
@@ -126,6 +128,9 @@ def format_terminal(
     stage_label = "Pre-Master Mix Analysis" if stage == "mix" else "Master Analysis Report"
     lines.append(f"{_BOLD}  BOUNCE HOUSE — {stage_label}{_RESET}")
     lines.append(f"{_DIM}  {filename} ({sr} Hz, {ch_str}, {duration_str}){_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
 
     # Collect all assessments for summary
@@ -238,6 +243,7 @@ def format_json(
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format analysis results as JSON.
 
@@ -246,6 +252,7 @@ def format_json(
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
         diagnoses: Optional list of Diagnosis objects from the pattern engine.
+        genre: Optional genres.GenreProfile overlay applied to the analysis.
 
     Returns:
         A JSON-encoded string with file info, per-module metrics,
@@ -256,6 +263,8 @@ def format_json(
         "file": filename,
         "format": file_info,
         "stage": stage,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
     }
 
     all_assessments: list[dict] = []
@@ -390,6 +399,7 @@ def format_dir_summary(
     directory: str,
     errors: list[tuple[str, str]] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format a summary table for batch directory analysis."""
     lines: list[str] = []
@@ -399,6 +409,9 @@ def format_dir_summary(
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     stage_label = " (Pre-Master Mix)" if stage == "mix" else ""
     lines.append(f"{_BOLD}  DIRECTORY SUMMARY{stage_label} ({total_files} files){_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     lines.append("")
 
@@ -480,6 +493,7 @@ def format_dir_json(
     directory: str,
     errors: list[tuple[str, str]] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format batch directory results as JSON."""
     files_output = []
@@ -536,6 +550,8 @@ def format_dir_json(
         "schema_version": _SCHEMA_VERSION,
         "directory": directory,
         "stage": stage,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
         "files": files_output,
         "skipped": skipped,
         "summary": {
