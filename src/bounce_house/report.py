@@ -99,6 +99,7 @@ def _sparkline(values: list, lo: float, hi: float) -> str:
             chars.append(" ")
             continue
         idx = int((min(max(v, lo), hi) - lo) / span * (len(_SPARK_CHARS) - 1))
+        idx = min(max(idx, 0), len(_SPARK_CHARS) - 1)
         chars.append(_SPARK_CHARS[idx])
     return "".join(chars)
 
@@ -211,7 +212,7 @@ def format_terminal(
 
         rms_curve = result.metrics.get("rms_curve_db")
         if rms_curve:
-            lo = max(min(rms_curve), -60.0)
+            lo = min(max(min(rms_curve), -60.0), max(rms_curve))
             spark = _sparkline(rms_curve, lo=lo, hi=max(rms_curve))
             lines.append(f"  {'Level':<22} {_DIM}{spark}{_RESET}")
 

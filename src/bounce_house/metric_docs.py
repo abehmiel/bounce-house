@@ -502,7 +502,7 @@ _STEREO_WIDTH = MetricDoc(
     key="stereo_width",
     name="Stereo Width",
     module="stereo",
-    summary="Side-to-total energy ratio — 0.0 is mono, 0.5 is equal M/S.",
+    summary="L/R decorrelation, balance-compensated — 0 is mono/panned, 0.5 independent.",
     explanation=(
         "How decorrelated the left and right channels are, after compensating "
         "for level imbalance: 0 means the two channels carry the same signal "

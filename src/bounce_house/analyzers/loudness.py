@@ -28,6 +28,8 @@ def _true_peak_dbtp(samples: np.ndarray, sample_rate: int) -> float:
 def _rms_curve_db(samples: np.ndarray, points: int = 50) -> list[float]:
     """Level-over-time: RMS of up to `points` equal segments, in dB (-100 floor)."""
     n = samples.shape[0]
+    if n == 0:
+        return []
     points = min(points, n)
     seg = n // points
     curve = []

@@ -498,3 +498,62 @@ class TestSparklines:
         )
         assert "Level" in out
         assert any(ch in out for ch in "▁▂▃▄▅▆▇█")
+
+    def test_sparkline_survives_inverted_range(self):
+        """Regression: lo > hi (e.g. clamped lo from an all-quiet curve) must not
+        produce an out-of-range index into _SPARK_CHARS."""
+        from bounce_house.report import _sparkline
+
+        s = _sparkline([-80.0, -75.0, -70.0], lo=-60.0, hi=-70.0)
+        assert len(s) == 3
+        assert all(ch in "▁▂▃▄▅▆▇█" for ch in s)
+
+    def test_report_handles_quiet_file_without_crashing(self, tmp_path):
+        """Regression: a stereo file whose RMS curve is entirely below -60 dBFS
+        used to crash format_terminal with an IndexError in _sparkline."""
+        import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+        from bounce_house.report import format_terminal
+
+        sr = 44100
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        # Amplitude well below -60 dBFS RMS (~0.0003 -> ~-70 dBFS).
+        left = 0.0003 * np.sin(2 * np.pi * 440 * t)
+        right = 0.0003 * np.sin(2 * np.pi * 440 * t + np.pi / 4)
+        quiet = np.column_stack([left, right])
+        path = tmp_path / "quiet.wav"
+        sf.write(str(path), quiet, sr, subtype="PCM_16")
+
+        data = _analyze_file(str(path), profile=get_profile("master"))
+        out = format_terminal(
+            data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]
+        )
+        assert out
+        assert "Level" in out
+
+    def test_report_handles_silent_file_without_crashing(self, tmp_path):
+        """Regression: an all-zeros (fully silent) file must not crash the
+        terminal report either."""
+        import numpy as np
+        import soundfile as sf
+
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+        from bounce_house.report import format_terminal
+
+        sr = 44100
+        duration = 1.0
+        silence = np.zeros((int(sr * duration), 2))
+        path = tmp_path / "silent.wav"
+        sf.write(str(path), silence, sr, subtype="PCM_16")
+
+        data = _analyze_file(str(path), profile=get_profile("master"))
+        out = format_terminal(
+            data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]
+        )
+        assert out
+        assert "Level" in out
