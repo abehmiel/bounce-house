@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({".wav", ".flac", ".aiff", ".aif", ".ogg"})
+
 
 @dataclass
 class AudioData:
@@ -20,6 +22,9 @@ class AudioData:
     # Peak of the delivered waveform BEFORE DC removal — the real headroom ceiling.
     # None for hand-built AudioData; analyzers fall back to the (DC-free) sample peak then.
     raw_sample_peak: float | None = None
+    # Delivered per-sample waveform BEFORE DC removal, shape (num_samples, num_channels).
+    # None for hand-built AudioData; analyzers fall back to the (DC-free) samples then.
+    raw_samples: np.ndarray | None = None
 
     @property
     def channels(self) -> int:
@@ -44,6 +49,14 @@ def load_audio(path: Path) -> AudioData:
     if not path.exists():
         raise FileNotFoundError(f"Audio file not found: {path}")
 
+    ext = path.suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        supported = ", ".join(sorted(e.lstrip(".") for e in SUPPORTED_EXTENSIONS))
+        raise ValueError(
+            f"Unsupported format '{ext}': {path}. Supported: {supported}. "
+            f"For mp3/m4a, convert first: ffmpeg -i input{ext} output.wav"
+        )
+
     try:
         samples, sample_rate = sf.read(str(path), dtype="float64")
     except sf.LibsndfileError as e:
@@ -53,9 +66,12 @@ def load_audio(path: Path) -> AudioData:
     if samples.ndim == 1:
         samples = samples[:, np.newaxis]
 
-    # Capture the delivered peak before DC removal — this is the true headroom
-    # ceiling for clipping/true-peak checks. DC is then removed so RMS, crest,
-    # and spectral measurements run on the audio content, not the offset.
+    # Capture the delivered waveform (and its peak) before DC removal — this is
+    # the true headroom ceiling for clipping/true-peak checks. DC is then
+    # removed so RMS, crest, and spectral measurements run on the audio
+    # content, not the offset. Copy so raw_samples stays pre-DC even if DC
+    # removal is ever changed to an in-place subtraction.
+    raw_samples = samples.copy()
     raw_sample_peak = float(np.max(np.abs(samples)))
     dc_offset = samples.mean(axis=0)
     samples = samples - dc_offset
@@ -66,4 +82,5 @@ def load_audio(path: Path) -> AudioData:
         filepath=path,
         dc_offset=dc_offset,
         raw_sample_peak=raw_sample_peak,
+        raw_samples=raw_samples,
     )

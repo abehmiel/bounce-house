@@ -26,8 +26,10 @@ _MODULE_TITLES = {
     "loudness": "Loudness & Dynamics",
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
+    "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "qc": "Quality Control",
 }
 
 # Metrics to hide from terminal display entirely
@@ -55,7 +57,6 @@ _METRIC_NAMES = {
     "rolloff_hz": "Rolloff (85%)",
     "flatness": "Flatness",
     "phase_correlation": "Phase Correlation",
-    "min_block_correlation": "Min Block Corr",
     "low_block_correlation": "Block Corr (p5)",
     "mid_rms_db": "Mid RMS",
     "side_rms_db": "Side RMS",
@@ -75,6 +76,14 @@ _METRIC_NAMES = {
     "pitch_drift_range_cents": "Pitch Drift (range)",
     "pitch_drift_trend_cents_per_min": "Pitch Trend",
     "chroma_sharpness": "Chroma Sharpness",
+    "clip_events": "Clip Events",
+    "longest_clip_run": "Longest Clip Run",
+    "leading_silence_sec": "Leading Silence",
+    "trailing_silence_sec": "Trailing Silence",
+    "mono_loss_db": "Mono Loss",
+    "worst_band": "Worst Band (mono)",
+    "worst_band_loss_db": "Worst Band Loss",
+    "low_end_reliance": "Low-End Reliance",
 }
 
 _SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
@@ -97,6 +106,7 @@ def format_terminal(
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format analysis results as rich terminal output.
 
@@ -105,6 +115,7 @@ def format_terminal(
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
         diagnoses: Optional list of Diagnosis objects from the pattern engine.
+        genre: Optional genres.GenreProfile overlay applied to the analysis.
 
     Returns:
         A string with ANSI color codes suitable for terminal display.
@@ -122,6 +133,9 @@ def format_terminal(
     stage_label = "Pre-Master Mix Analysis" if stage == "mix" else "Master Analysis Report"
     lines.append(f"{_BOLD}  BOUNCE HOUSE — {stage_label}{_RESET}")
     lines.append(f"{_DIM}  {filename} ({sr} Hz, {ch_str}, {duration_str}){_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
 
     # Collect all assessments for summary
@@ -155,6 +169,7 @@ def format_terminal(
                 "reference_bands",
                 "frequency_width",
                 "band_ratios",
+                "band_mono_loss",
             ):
                 continue
             # Skip reference/diff keys in main display
@@ -196,6 +211,14 @@ def format_terminal(
                 label = band_name.replace("_", "-")
                 lines.append(f"    {label:<18} {corr:+.3f}")
 
+        band_mono_loss = result.metrics.get("band_mono_loss")
+        if band_mono_loss:
+            lines.append("")
+            lines.append(f"  {_DIM}Mono loss by band:{_RESET}")
+            for band_name, loss in band_mono_loss.items():
+                label = band_name.replace("_", "-")
+                lines.append(f"    {label:<18} {loss:+.1f} dB")
+
     # Suggestions section
     warns = [a for a in all_assessments if a.status == "warn"]
     fails = [a for a in all_assessments if a.status == "fail"]
@@ -234,6 +257,7 @@ def format_json(
     file_info: dict[str, Any],
     diagnoses: list[Diagnosis] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format analysis results as JSON.
 
@@ -242,6 +266,7 @@ def format_json(
         filename: Name of the analyzed audio file.
         file_info: Dict with keys 'sample_rate', 'channels', 'duration'.
         diagnoses: Optional list of Diagnosis objects from the pattern engine.
+        genre: Optional genres.GenreProfile overlay applied to the analysis.
 
     Returns:
         A JSON-encoded string with file info, per-module metrics,
@@ -252,6 +277,8 @@ def format_json(
         "file": filename,
         "format": file_info,
         "stage": stage,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
     }
 
     all_assessments: list[dict] = []
@@ -386,6 +413,7 @@ def format_dir_summary(
     directory: str,
     errors: list[tuple[str, str]] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format a summary table for batch directory analysis."""
     lines: list[str] = []
@@ -395,6 +423,9 @@ def format_dir_summary(
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     stage_label = " (Pre-Master Mix)" if stage == "mix" else ""
     lines.append(f"{_BOLD}  DIRECTORY SUMMARY{stage_label} ({total_files} files){_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     lines.append("")
 
@@ -476,6 +507,7 @@ def format_dir_json(
     directory: str,
     errors: list[tuple[str, str]] | None = None,
     stage: str = "master",
+    genre=None,
 ) -> str:
     """Format batch directory results as JSON."""
     files_output = []
@@ -532,6 +564,8 @@ def format_dir_json(
         "schema_version": _SCHEMA_VERSION,
         "directory": directory,
         "stage": stage,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
         "files": files_output,
         "skipped": skipped,
         "summary": {

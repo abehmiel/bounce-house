@@ -120,6 +120,69 @@ def _chroma_sharpness_status(value: float) -> str:
     return "fail"
 
 
+def _qc_clip_status(value: float) -> str:
+    if value == 0:
+        return "pass"
+    if value <= 20:
+        return "warn"
+    return "fail"
+
+
+def _qc_leading_silence_status(value: float) -> str:
+    if value <= 0.5:
+        return "pass"
+    if value <= 5.0:
+        return "warn"
+    return "fail"
+
+
+def _qc_trailing_silence_status(value: float) -> str:
+    if value <= 5.0:
+        return "pass"
+    if value <= 30.0:
+        return "warn"
+    return "fail"
+
+
+def _dc_offset_status(value: float) -> str:
+    if value < -40.0:
+        return "pass"
+    if value <= -20.0:
+        return "warn"
+    return "fail"
+
+
+def _range_status(
+    value: float, pass_range: tuple[float, float], warn_range: tuple[float, float]
+) -> str:
+    """Grade a value against nested pass/warn ranges (inclusive)."""
+    if pass_range[0] <= value <= pass_range[1]:
+        return "pass"
+    if warn_range[0] <= value <= warn_range[1]:
+        return "warn"
+    return "fail"
+
+
+def _make_range_rule(
+    metric: str,
+    pass_range: tuple[float, float],
+    warn_range: tuple[float, float],
+    unit: str,
+    subject: str,
+) -> dict:
+    """Build a data-driven rule dict from pass/warn ranges."""
+    lo, hi = pass_range
+    return {
+        "metric": metric,
+        "evaluate": lambda v, p=pass_range, w=warn_range: _range_status(v, p, w),
+        "messages": {
+            "pass": f"{subject} is {{value:.2f}}{unit} — within the {lo}-{hi}{unit} target",
+            "warn": f"{subject} is {{value:.2f}}{unit} — outside the {lo}-{hi}{unit} target",
+            "fail": f"{subject} is {{value:.2f}}{unit} — far outside the {lo}-{hi}{unit} target",
+        },
+    }
+
+
 _MASTER_RULES: dict[str, list[dict]] = {
     "loudness": [
         {
@@ -188,6 +251,21 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "fail": "PLR is {value:.1f} dB — heavily limited, consider backing off the limiter",
             },
         },
+        {
+            "metric": "dc_offset_db",
+            "evaluate": _dc_offset_status,
+            "messages": {
+                "pass": "DC offset negligible ({value:.1f} dBFS)",
+                "warn": (
+                    "DC offset of {value:.1f} dBFS removed before analysis"
+                    " — check plugin chains and interface"
+                ),
+                "fail": (
+                    "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
+                    " is broken, fix at the source"
+                ),
+            },
+        },
     ],
     "stereo": [
         {
@@ -231,6 +309,12 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 ),
             },
         },
+        _make_range_rule("stereo_width", (0.08, 0.45), (0.03, 0.55), "", "Stereo width"),
+        _make_range_rule("ms_ratio_db", (3.0, 12.0), (0.0, 18.0), " dB", "M/S ratio"),
+    ],
+    "translation": [
+        _make_range_rule("mono_loss_db", (-1.0, 0.5), (-3.0, 0.5), " dB", "Mono energy loss"),
+        _make_range_rule("low_end_reliance", (0.0, 0.35), (0.0, 0.50), "", "Low-end reliance"),
     ],
     "tuning": [
         {
@@ -268,6 +352,44 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "fail": (
                     "Chroma definition: {value:.2f} — very diffuse pitch content, check intonation"
                 ),
+            },
+        },
+        _make_range_rule(
+            "pitch_drift_std_cents", (0.0, 5.0), (0.0, 12.0), " cents", "Pitch drift (std)"
+        ),
+    ],
+    "qc": [
+        {
+            "metric": "clip_events",
+            "evaluate": _qc_clip_status,
+            "messages": {
+                "pass": "No hard clipping detected",
+                "warn": (
+                    "{value:.0f} clipped run(s) detected — fine if intentional,"
+                    " otherwise lower your limiter ceiling"
+                ),
+                "fail": (
+                    "{value:.0f} clipped runs detected — audible distortion likely,"
+                    " check export gain staging and limiter ceiling"
+                ),
+            },
+        },
+        {
+            "metric": "leading_silence_sec",
+            "evaluate": _qc_leading_silence_status,
+            "messages": {
+                "pass": "Head is tight ({value:.2f} s of leading silence)",
+                "warn": "{value:.2f} s of leading silence — trim the export region start",
+                "fail": "{value:.2f} s of leading silence — export region includes empty bars",
+            },
+        },
+        {
+            "metric": "trailing_silence_sec",
+            "evaluate": _qc_trailing_silence_status,
+            "messages": {
+                "pass": "Tail is clean ({value:.2f} s of trailing silence)",
+                "warn": "{value:.2f} s of trailing silence — check the export region end",
+                "fail": "{value:.2f} s of trailing silence — export region far too long",
             },
         },
     ],
@@ -564,9 +686,26 @@ _MIX_RULES: dict[str, list[dict]] = {
                 ),
             },
         },
+        {
+            "metric": "dc_offset_db",
+            "evaluate": _dc_offset_status,
+            "messages": {
+                "pass": "DC offset negligible ({value:.1f} dBFS)",
+                "warn": (
+                    "DC offset of {value:.1f} dBFS removed before analysis"
+                    " — check plugin chains and interface"
+                ),
+                "fail": (
+                    "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
+                    " is broken, fix at the source"
+                ),
+            },
+        },
     ],
     "stereo": _MASTER_RULES["stereo"],  # identical
+    "translation": _MASTER_RULES["translation"],  # identical
     "tuning": _MASTER_RULES["tuning"],  # identical
+    "qc": _MASTER_RULES["qc"],  # identical
 }
 
 _MIX_PATTERNS: list[dict] = [p for p in _MASTER_PATTERNS if p["pattern"] != "streaming_unfriendly"]

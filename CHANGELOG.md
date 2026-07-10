@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - UNRELEASED
 
+### Added
+- `--genre` flag (pop/rock/edm/hip_hop/metal/folk) overlays genre target ranges — provisional values pending real-song calibration evals
+- Translation module: mono loss, per-band mono cancellation, small-speaker low-end reliance
+- Quality Control module: hard-clipping detection, leading/trailing silence; DC offset now has a pass/warn/fail rule
+- Stereo width, M/S ratio, and pitch-drift std are now assessed (previously informational)
+- FLAC/AIFF/OGG input accepted everywhere; `dir` discovers all supported formats
+- Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)
+
 ### Fixed
 - `uvx` / `pip install git+…` installs failed on dependency resolution (numba floored to >=0.60)
 - Files shorter than 400 ms crashed loudness analysis; LUFS/LRA now report as unavailable
@@ -26,9 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Band energies are now dB relative to the file's broadband average (JSON `schema_version` is now 2)
 - Phase correlation grading retuned for full mixes: pass ≥ +0.5, warn +0.1 to +0.5, fail below +0.1
 - New `band_ratios` metrics (low_mid−mid, bass−mid, upper_mid−mid) drive the spectral diagnostics
-
-### Added
-- Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)
+- CLI startup no longer imports the DSP stack for `--version`/`explain` (~0.6 s faster)
+- Removed the redundant `min_block_correlation` metric (superseded by the 5th-percentile block correlation)
 
 ## [0.1.0] - 2026-03-11
 

@@ -20,13 +20,9 @@ from rich.progress import (
 )
 
 from bounce_house.analyzers.base import AnalysisResult
-from bounce_house.analyzers.loudness import LoudnessAnalyzer
-from bounce_house.analyzers.perceptual import PerceptualAnalyzer
-from bounce_house.analyzers.spectrum import SpectrumAnalyzer
-from bounce_house.analyzers.stereo import StereoAnalyzer
-from bounce_house.analyzers.tuning import TuningAnalyzer
 from bounce_house.audio import load_audio
 from bounce_house.diagnostics import evaluate_diagnostics
+from bounce_house.genres import GENRE_NAMES  # top-level import is fine: genres.py is light
 from bounce_house.metric_docs import resolve_topic
 from bounce_house.profiles import get_profile
 from bounce_house.report import (
@@ -61,15 +57,37 @@ def _print_report(text: str) -> None:
     print(text)
 
 
-ALL_ANALYZERS = [
-    LoudnessAnalyzer(),
-    SpectrumAnalyzer(),
-    StereoAnalyzer(),
-    PerceptualAnalyzer(),
-    TuningAnalyzer(),
-]
+# Analyzer subcommand names — must not import the analyzers (librosa is slow to load)
+MODULE_COMMANDS: tuple[str, ...] = (
+    "loudness",
+    "spectrum",
+    "stereo",
+    "translation",
+    "perceptual",
+    "tuning",
+    "qc",
+)
 
-ANALYZER_MAP = {a.name: a for a in ALL_ANALYZERS}
+
+def _load_analyzers() -> list:
+    """Import and instantiate all analyzers. Deferred: pulls the librosa/numba chain."""
+    from bounce_house.analyzers.loudness import LoudnessAnalyzer
+    from bounce_house.analyzers.perceptual import PerceptualAnalyzer
+    from bounce_house.analyzers.qc import QcAnalyzer
+    from bounce_house.analyzers.spectrum import SpectrumAnalyzer
+    from bounce_house.analyzers.stereo import StereoAnalyzer
+    from bounce_house.analyzers.translation import TranslationAnalyzer
+    from bounce_house.analyzers.tuning import TuningAnalyzer
+
+    return [
+        LoudnessAnalyzer(),
+        SpectrumAnalyzer(),
+        StereoAnalyzer(),
+        TranslationAnalyzer(),
+        PerceptualAnalyzer(),
+        TuningAnalyzer(),
+        QcAnalyzer(),
+    ]
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -89,6 +107,12 @@ def create_parser() -> argparse.ArgumentParser:
             "Analysis stage: 'master' (default) or 'mix' (pre-master mix with adjusted thresholds)"
         ),
     )
+    stage_parent.add_argument(
+        "--genre",
+        choices=list(GENRE_NAMES),
+        default=None,
+        help="Calibrate targets for a genre (provisional targets pending real-song evals)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -96,28 +120,35 @@ def create_parser() -> argparse.ArgumentParser:
     analyze_parser = subparsers.add_parser(
         "analyze", help="Run full analysis on a mix", parents=[stage_parent]
     )
-    analyze_parser.add_argument("file", help="Path to .wav file")
-    analyze_parser.add_argument("--reference", help="Path to reference .wav file")
+    analyze_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
+    analyze_parser.add_argument(
+        "--reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
     analyze_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # Individual module subcommands
-    for name, desc in [
-        ("loudness", "Loudness and dynamics analysis"),
-        ("spectrum", "Spectral analysis"),
-        ("stereo", "Stereo imaging and phase analysis"),
-        ("perceptual", "Perceptual quality analysis"),
-        ("tuning", "Tuning and pitch stability analysis"),
-    ]:
-        sub = subparsers.add_parser(name, help=desc, parents=[stage_parent])
-        sub.add_argument("file", help="Path to .wav file")
+    module_descriptions = {
+        "loudness": "Loudness and dynamics analysis",
+        "spectrum": "Spectral analysis",
+        "stereo": "Stereo imaging and phase analysis",
+        "translation": "Mono and small-speaker translation check",
+        "perceptual": "Perceptual quality analysis",
+        "tuning": "Tuning and pitch stability analysis",
+        "qc": "Quality control — clipping and edge silence",
+    }
+    for name in MODULE_COMMANDS:
+        sub = subparsers.add_parser(name, help=module_descriptions[name], parents=[stage_parent])
+        sub.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
         sub.add_argument("--json", action="store_true", help="Output as JSON")
 
     # compare
     compare_parser = subparsers.add_parser(
         "compare", help="Compare mix against a reference track", parents=[stage_parent]
     )
-    compare_parser.add_argument("file", help="Path to .wav file")
-    compare_parser.add_argument("reference", help="Path to reference .wav file")
+    compare_parser.add_argument("file", help="Path to an audio file (wav/flac/aiff/ogg)")
+    compare_parser.add_argument(
+        "reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # explain — metric documentation
@@ -131,12 +162,14 @@ def create_parser() -> argparse.ArgumentParser:
 
     # dir — batch analysis
     dir_parser = subparsers.add_parser(
-        "dir", help="Analyze all .wav files in a directory", parents=[stage_parent]
+        "dir", help="Analyze all audio files in a directory", parents=[stage_parent]
     )
-    dir_parser.add_argument("path", help="Directory to scan for .wav files")
+    dir_parser.add_argument("path", help="Directory to scan for audio files")
     dir_parser.add_argument("-r", "--recursive", action="store_true", help="Include subdirectories")
     dir_parser.add_argument("--json", action="store_true", help="Output as JSON")
-    dir_parser.add_argument("--reference", help="Path to reference .wav file")
+    dir_parser.add_argument(
+        "--reference", help="Path to a reference audio file (wav/flac/aiff/ogg)"
+    )
 
     return parser
 
@@ -176,7 +209,7 @@ def _analyze_file(
                 "unreliable until both are at the same rate."
             )
     if analyzers is None:
-        analyzers = ALL_ANALYZERS
+        analyzers = _load_analyzers()
     results: list[AnalysisResult] = []
     for analyzer in analyzers:
         if on_module:
@@ -209,9 +242,10 @@ def _run_analysis(
     analyzers: list | None = None,
     use_json: bool = False,
     profile=None,
+    genre=None,
 ) -> int:
     """Run analysis and print report. Returns exit code."""
-    active_analyzers = analyzers if analyzers is not None else ALL_ANALYZERS
+    active_analyzers = analyzers if analyzers is not None else _load_analyzers()
     try:
         with Progress(
             SpinnerColumn(),
@@ -244,6 +278,7 @@ def _run_analysis(
                 data["file_info"],
                 diagnoses=data["diagnoses"],
                 stage=profile.name,
+                genre=genre,
             )
         )
     else:
@@ -254,18 +289,19 @@ def _run_analysis(
                 data["file_info"],
                 diagnoses=data["diagnoses"],
                 stage=profile.name,
+                genre=genre,
             )
         )
     return _exit_code_for_results(data["results"])
 
 
-def _discover_wav_files(directory: str, recursive: bool = False) -> list[Path]:
-    """Find .wav files in a directory, sorted alphabetically."""
+def _discover_audio_files(directory: str, recursive: bool = False) -> list[Path]:
+    """Find supported audio files in a directory, sorted alphabetically."""
+    from bounce_house.audio import SUPPORTED_EXTENSIONS
+
     dir_path = Path(directory)
-    if recursive:  # noqa: SIM108
-        files = list(dir_path.rglob("*.wav"))
-    else:
-        files = list(dir_path.glob("*.wav"))
+    candidates = dir_path.rglob("*") if recursive else dir_path.glob("*")
+    files = [p for p in candidates if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS]
     return sorted(files, key=lambda p: p.name.lower())
 
 
@@ -275,18 +311,20 @@ def _run_dir(
     reference_path: str | None = None,
     use_json: bool = False,
     profile=None,
+    genre=None,
 ) -> int:
-    """Analyze all .wav files in a directory. Returns exit code."""
+    """Analyze all audio files in a directory. Returns exit code."""
     dir_path = Path(directory)
     if not dir_path.is_dir():
         print(f"Error: Directory does not exist: {directory}", file=sys.stderr)
         return 1
 
-    wav_files = _discover_wav_files(directory, recursive)
+    wav_files = _discover_audio_files(directory, recursive)
     if not wav_files:
-        print(f"Error: No .wav files found in {directory}", file=sys.stderr)
+        print(f"Error: No audio files found in {directory}", file=sys.stderr)
         return 1
 
+    analyzer_list = _load_analyzers()
     file_data: list[dict] = []
     errors: list[tuple[str, str]] = []
 
@@ -300,11 +338,11 @@ def _run_dir(
         transient=True,
     ) as progress:
         file_task = progress.add_task("Analyzing files", total=len(wav_files))
-        module_task = progress.add_task("Modules", total=len(ALL_ANALYZERS), visible=False)
+        module_task = progress.add_task("Modules", total=len(analyzer_list), visible=False)
 
         for wav_path in wav_files:
             progress.update(file_task, description=f"Analyzing {wav_path.name}")
-            progress.update(module_task, completed=0, total=len(ALL_ANALYZERS), visible=True)
+            progress.update(module_task, completed=0, total=len(analyzer_list), visible=True)
 
             def on_module(name: str):
                 progress.update(module_task, description=f"  {name}")
@@ -312,7 +350,11 @@ def _run_dir(
 
             try:
                 data = _analyze_file(
-                    str(wav_path), reference_path, on_module=on_module, profile=profile
+                    str(wav_path),
+                    reference_path,
+                    analyzers=analyzer_list,
+                    on_module=on_module,
+                    profile=profile,
                 )
                 file_data.append(data)
             except (FileNotFoundError, ValueError) as e:
@@ -327,7 +369,7 @@ def _run_dir(
         return 1
 
     if use_json:
-        print(format_dir_json(file_data, directory, errors, stage=profile.name))
+        print(format_dir_json(file_data, directory, errors, stage=profile.name, genre=genre))
     else:
         for data in file_data:
             _print_report(
@@ -337,9 +379,12 @@ def _run_dir(
                     data["file_info"],
                     diagnoses=data["diagnoses"],
                     stage=profile.name,
+                    genre=genre,
                 )
             )
-        _print_report(format_dir_summary(file_data, directory, errors, stage=profile.name))
+        _print_report(
+            format_dir_summary(file_data, directory, errors, stage=profile.name, genre=genre)
+        )
 
     return _batch_exit_code(file_data, errors)
 
@@ -380,8 +425,18 @@ def main(argv: list[str] | None = None) -> int:
     use_json = getattr(args, "json", False)
     profile = get_profile(getattr(args, "stage", "master"))
 
+    genre_name = getattr(args, "genre", None)
+    genre = None
+    if genre_name:
+        from bounce_house.genres import apply_genre, get_genre
+
+        genre = get_genre(genre_name)
+        profile = apply_genre(profile, genre)
+
     if args.command == "analyze" or args.command == "compare":
-        return _run_analysis(args.file, args.reference, None, use_json, profile=profile)
+        return _run_analysis(
+            args.file, args.reference, None, use_json, profile=profile, genre=genre
+        )
     elif args.command == "explain":
         return _run_explain(args.topic, getattr(args, "technical", False))
     elif args.command == "dir":
@@ -391,10 +446,11 @@ def main(argv: list[str] | None = None) -> int:
             getattr(args, "reference", None),
             use_json,
             profile=profile,
+            genre=genre,
         )
-    elif args.command in ANALYZER_MAP:
-        analyzer = ANALYZER_MAP[args.command]
-        return _run_analysis(args.file, None, [analyzer], use_json, profile=profile)
+    elif args.command in MODULE_COMMANDS:
+        analyzer = next(a for a in _load_analyzers() if a.name == args.command)
+        return _run_analysis(args.file, None, [analyzer], use_json, profile=profile, genre=genre)
     else:
         parser.print_help()
         return 1

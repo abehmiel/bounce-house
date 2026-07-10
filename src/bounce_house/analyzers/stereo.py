@@ -70,7 +70,6 @@ class StereoAnalyzer(AnalyzerBase):
             if np.std(bl) > 1e-10 and np.std(br) > 1e-10:
                 block_corrs.append(float(np.corrcoef(bl, br)[0, 1]))
 
-        metrics["min_block_correlation"] = round(min(block_corrs), 4) if block_corrs else 1.0
         metrics["low_block_correlation"] = (
             round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else 1.0
         )

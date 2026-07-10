@@ -495,32 +495,6 @@ _BALANCE = MetricDoc(
     aliases=["balance", "pan", "channel_balance", "lr_balance"],
 )
 
-_MIN_BLOCK_CORR = MetricDoc(
-    key="min_block_correlation",
-    name="Min Block Correlation",
-    module="stereo",
-    summary="Worst-case phase correlation in any 50ms window.",
-    explanation=(
-        "The minimum phase correlation found in any 50ms block of the signal. "
-        "Even if the overall correlation is healthy, individual sections with "
-        "negative correlation will cause audible phase cancellation in mono. "
-        "Identifies problematic stereo effects, flanger sweeps, or "
-        "polarity-inverted sections."
-    ),
-    good_range="Above 0.0",
-    genre_notes=(
-        "Brief dips below 0.0 during transitions or effects may be acceptable "
-        "in electronic music. Sustained negative correlation in any section "
-        "is problematic for all genres."
-    ),
-    technical=(
-        "Method: signal split into 50ms blocks (block_size = sr * 0.05). "
-        "Pearson correlation computed per block. Returns the minimum value. "
-        "Blocks with near-zero standard deviation are skipped."
-    ),
-    aliases=["min_corr", "min_block", "worst_correlation", "block_correlation"],
-)
-
 _LOW_BLOCK_CORR = MetricDoc(
     key="low_block_correlation",
     name="Block Correlation (5th Percentile)",
@@ -571,6 +545,73 @@ _FREQ_WIDTH = MetricDoc(
         "with nperseg=4096."
     ),
     aliases=["freq_width", "frequency_correlation", "band_width", "freq_stereo"],
+)
+
+# --- Translation metrics ---
+
+_MONO_LOSS = MetricDoc(
+    key="mono_loss_db",
+    name="Mono Loss",
+    module="translation",
+    summary="Energy lost when the mix is summed to mono.",
+    explanation=(
+        "Phones, Bluetooth speakers, club PA subs, and many cafe systems play "
+        "your mix in mono. This measures how much energy disappears when L and "
+        "R are summed: 0 dB means nothing lost, -3 dB is a hard-panned "
+        "element's pan-law drop, and larger losses mean anti-phase content is "
+        "cancelling itself."
+    ),
+    good_range="0 to -1 dB",
+    genre_notes=(
+        "Genre-independent. Wide electronic mixes tolerate up to ~-2 dB if a "
+        "mono listen confirms nothing vital vanishes."
+    ),
+    technical=(
+        "Method: 10*log10(mean(((L+R)/2)^2) / mean of per-channel power). "
+        "Per-band version uses STFT (nperseg=4096) over the same five bands "
+        "as the stereo analyzer."
+    ),
+    aliases=["mono_loss", "mono", "translation"],
+)
+
+_BAND_MONO_LOSS = MetricDoc(
+    key="band_mono_loss",
+    name="Mono Loss by Band",
+    module="translation",
+    summary="Where in the spectrum mono summing cancels energy.",
+    explanation=(
+        "Localizes mono cancellation: a big low-mid loss usually means "
+        "stereo-widened guitars/synths; sub-bass loss means stereo bass (see "
+        "the Wide Bass diagnostic)."
+    ),
+    good_range="Each band 0 to -1 dB",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: per-band mono-sum STFT power vs per-channel average power, "
+        "bands 20-120/120-500/500-2k/2k-8k/8k-20k Hz."
+    ),
+    aliases=["band_loss"],
+)
+
+_LOW_END_RELIANCE = MetricDoc(
+    key="low_end_reliance",
+    name="Low-End Reliance",
+    module="translation",
+    summary="Fraction of the mix's energy below 120 Hz.",
+    explanation=(
+        "Small speakers reproduce almost nothing below ~120 Hz. If most of "
+        "your energy lives down there, the mix collapses on a phone: quiet, "
+        "thin, and unbalanced. Give melodic low-end parts harmonics "
+        "(saturation) so they read on small speakers."
+    ),
+    good_range="0.05 to 0.35",
+    genre_notes=(
+        "Bass-heavy genres (hip-hop, EDM) run higher by design — check the "
+        "mix on a phone speaker anyway; saturation on the bass keeps it "
+        "audible."
+    ),
+    technical=("Method: STFT power below 120 Hz over total power, computed on the mono sum."),
+    aliases=["low_end", "sub_reliance", "small_speaker"],
 )
 
 # --- Perceptual metrics ---
@@ -832,6 +873,76 @@ _PITCH_DRIFT_TREND = MetricDoc(
     aliases=["pitch_trend", "drift_trend"],
 )
 
+# --- QC metrics ---
+
+_CLIP_EVENTS = MetricDoc(
+    key="clip_events",
+    name="Clip Events",
+    module="qc",
+    summary="Count of hard-clipped sample runs (≥3 consecutive samples at −0.1 dBFS).",
+    explanation=(
+        "Runs of consecutive full-scale samples mean the waveform was flattened — "
+        "digital clipping. A handful may be an intentional loudness aesthetic; "
+        "dozens mean your limiter ceiling or export gain staging is wrong."
+    ),
+    good_range="0",
+    genre_notes=(
+        "Aggressive EDM/metal masters sometimes clip deliberately; anything else "
+        "should be clean. If you didn't choose clipping, fix it."
+    ),
+    technical=(
+        "Method: per channel, count runs of ≥3 consecutive samples with "
+        "|x| ≥ 10^(−0.1/20). DC offset is removed before detection."
+    ),
+    aliases=["clipping", "clip", "clipped"],
+)
+
+_LONGEST_CLIP_RUN = MetricDoc(
+    key="longest_clip_run",
+    name="Longest Clip Run",
+    module="qc",
+    summary="Length in samples of the longest flattened run.",
+    explanation=(
+        "Longer runs are more audible: 3–5 samples may pass unnoticed; runs "
+        "above ~20 samples (0.5 ms) produce audible distortion on transients."
+    ),
+    good_range="0 samples",
+    genre_notes="Genre-independent.",
+    technical="Method: max run length among detected clip runs across channels.",
+    aliases=["clip_run"],
+)
+
+_LEADING_SILENCE = MetricDoc(
+    key="leading_silence_sec",
+    name="Leading Silence",
+    module="qc",
+    summary="Silence before the audio starts.",
+    explanation=(
+        "Dead air at the start of a bounce usually means the export region "
+        "included empty bars. Streaming platforms and CD pressing both want "
+        "tight heads."
+    ),
+    good_range="0 to 0.5 s",
+    genre_notes="Genre-independent; leave heads tight and let the platform handle gaps.",
+    technical="Method: 10 ms peak-envelope windows below −60 dBFS from the start.",
+    aliases=["leading_silence", "head_silence"],
+)
+
+_TRAILING_SILENCE = MetricDoc(
+    key="trailing_silence_sec",
+    name="Trailing Silence",
+    module="qc",
+    summary="Silence after the audio ends.",
+    explanation=(
+        "A long silent tail inflates track length and can be an export-region "
+        "mistake. Reverb tails that decay below −60 dBFS count as silence here."
+    ),
+    good_range="0 to 5 s",
+    genre_notes="Genre-independent.",
+    technical="Method: 10 ms peak-envelope windows below −60 dBFS from the end.",
+    aliases=["trailing_silence", "tail_silence"],
+)
+
 # --- Registry ---
 
 METRICS: dict[str, MetricDoc] = {
@@ -856,9 +967,11 @@ METRICS: dict[str, MetricDoc] = {
         _MS_RATIO,
         _STEREO_WIDTH,
         _BALANCE,
-        _MIN_BLOCK_CORR,
         _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
+        _MONO_LOSS,
+        _BAND_MONO_LOSS,
+        _LOW_END_RELIANCE,
         _BRIGHTNESS,
         _WARMTH,
         _TIMBRAL_BRIGHTNESS,
@@ -870,6 +983,10 @@ METRICS: dict[str, MetricDoc] = {
         _CLOSEST_STANDARD,
         _PITCH_DRIFT_STD,
         _PITCH_DRIFT_TREND,
+        _CLIP_EVENTS,
+        _LONGEST_CLIP_RUN,
+        _LEADING_SILENCE,
+        _TRAILING_SILENCE,
     ]
 }
 
@@ -898,10 +1015,10 @@ MODULES: dict[str, list[str]] = {
         "ms_ratio_db",
         "stereo_width",
         "balance_db",
-        "min_block_correlation",
         "low_block_correlation",
         "frequency_width",
     ],
+    "translation": ["mono_loss_db", "band_mono_loss", "low_end_reliance"],
     "perceptual": ["brightness", "warmth", "timbral_brightness", "timbral_warmth"],
     "tuning": [
         "tuning_deviation_cents",
@@ -912,6 +1029,12 @@ MODULES: dict[str, list[str]] = {
         "pitch_drift_trend_cents_per_min",
         "chroma_sharpness",
     ],
+    "qc": [
+        "clip_events",
+        "longest_clip_run",
+        "leading_silence_sec",
+        "trailing_silence_sec",
+    ],
 }
 
 # Module display names (shared with report.py)
@@ -919,8 +1042,10 @@ MODULE_TITLES: dict[str, str] = {
     "loudness": "Loudness & Dynamics",
     "spectrum": "Spectral Balance",
     "stereo": "Stereo & Phase",
+    "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "qc": "Quality Control",
 }
 
 
