@@ -625,11 +625,14 @@ def _diff_line(change: MetricChange, color: str) -> str:
     )
 
 
-def format_diff_terminal(diff: BounceDiff, old_path: str, new_path: str) -> str:
+def format_diff_terminal(diff: BounceDiff, old_path: str, new_path: str, genre=None) -> str:
     lines: list[str] = [""]
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
     lines.append(f"{_BOLD}  BOUNCE DIFF{_RESET}")
     lines.append(f"{_DIM}  {old_path} → {new_path}{_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
     lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
 
     if diff.improvements:
@@ -664,7 +667,7 @@ def format_diff_terminal(diff: BounceDiff, old_path: str, new_path: str) -> str:
     return "\n".join(lines)
 
 
-def format_diff_json(diff: BounceDiff, old_path: str, new_path: str) -> str:
+def format_diff_json(diff: BounceDiff, old_path: str, new_path: str, genre=None) -> str:
     def _encode(change: MetricChange) -> dict:
         return {
             "module": change.module,
@@ -680,6 +683,8 @@ def format_diff_json(diff: BounceDiff, old_path: str, new_path: str) -> str:
         "schema_version": _SCHEMA_VERSION,
         "old": old_path,
         "new": new_path,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
         "improvements": [_encode(c) for c in diff.improvements],
         "regressions": [_encode(c) for c in diff.regressions],
         "changes": [_encode(c) for c in diff.changes],

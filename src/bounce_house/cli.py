@@ -399,7 +399,9 @@ def _run_dir(
     return _batch_exit_code(file_data, errors)
 
 
-def _run_diff(old_path: str, new_path: str, use_json: bool = False, profile=None) -> int:
+def _run_diff(
+    old_path: str, new_path: str, use_json: bool = False, profile=None, genre=None
+) -> int:
     """Diff two bounces. Exit 0 = no regressions, 1 = regressions or new diagnostics."""
     from bounce_house.bounce_diff import compute_diff
     from bounce_house.report import format_diff_json, format_diff_terminal
@@ -413,9 +415,9 @@ def _run_diff(old_path: str, new_path: str, use_json: bool = False, profile=None
 
     diff = compute_diff(old_data, new_data)
     if use_json:
-        print(format_diff_json(diff, old_path, new_path))
+        print(format_diff_json(diff, old_path, new_path, genre=genre))
     else:
-        _print_report(format_diff_terminal(diff, old_path, new_path))
+        _print_report(format_diff_terminal(diff, old_path, new_path, genre=genre))
 
     if diff.regressions or diff.diagnostics_introduced:
         return 1
@@ -482,7 +484,7 @@ def main(argv: list[str] | None = None) -> int:
             genre=genre,
         )
     elif args.command == "diff":
-        return _run_diff(args.old, args.new, use_json, profile=profile)
+        return _run_diff(args.old, args.new, use_json, profile=profile, genre=genre)
     elif args.command in MODULE_COMMANDS:
         analyzer = next(a for a in _load_analyzers() if a.name == args.command)
         return _run_analysis(args.file, None, [analyzer], use_json, profile=profile, genre=genre)

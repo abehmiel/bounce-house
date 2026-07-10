@@ -736,3 +736,44 @@ class TestDiffCommand:
         assert data["old"].endswith(".wav") and data["new"].endswith(".wav")
         assert "improvements" in data and "regressions" in data
         assert "diagnostics_resolved" in data
+        assert data["genre"] is None
+        assert data["genre_provisional"] is None
+
+    def test_diff_json_surfaces_genre(self, tmp_wav, tmp_path, capsys):
+        import soundfile as sf
+
+        from bounce_house.audio import load_audio as _load
+
+        audio = _load(tmp_wav)
+        quieter = tmp_path / "v2.wav"
+        sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
+        main(["diff", str(tmp_wav), str(quieter), "--genre", "pop", "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert data["genre"] == "pop"
+        assert "genre_provisional" in data
+        assert data["genre_provisional"] is True
+
+    def test_diff_terminal_surfaces_genre(self, tmp_wav, tmp_path, capsys):
+        import soundfile as sf
+
+        from bounce_house.audio import load_audio as _load
+
+        audio = _load(tmp_wav)
+        quieter = tmp_path / "v2.wav"
+        sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
+        main(["diff", str(tmp_wav), str(quieter), "--genre", "pop"])
+        out = capsys.readouterr().out
+        assert "Genre targets: Pop" in out
+        assert "(provisional targets)" in out
+
+    def test_diff_terminal_no_genre_line_without_genre(self, tmp_wav, tmp_path, capsys):
+        import soundfile as sf
+
+        from bounce_house.audio import load_audio as _load
+
+        audio = _load(tmp_wav)
+        quieter = tmp_path / "v2.wav"
+        sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
+        main(["diff", str(tmp_wav), str(quieter)])
+        out = capsys.readouterr().out
+        assert "Genre targets:" not in out
