@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stereo width, M/S ratio, and pitch-drift std are now assessed (previously informational)
 - FLAC/AIFF/OGG input accepted everywhere; `dir` discovers all supported formats
 - Release workflow builds wheel + sdist and attaches them to the GitHub Release on tag push (PyPI trusted publishing is deferred to a later release)
+- `diff` command: status transitions, significant metric deltas, and diagnostics resolved/introduced between two bounces; exit 1 on regressions for CI gating
+- DR dynamic-range score (TT convention) with pass/warn/fail rule
+- Level-over-time and correlation-over-time curves — sparklines in the terminal, plot-ready arrays in `--json`
+- Band-energy bars in the terminal report
 
 ### Fixed
 - `uvx` / `pip install git+…` installs failed on dependency resolution (numba floored to >=0.60)
@@ -36,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `band_ratios` metrics (low_mid−mid, bass−mid, upper_mid−mid) drive the spectral diagnostics
 - CLI startup no longer imports the DSP stack for `--version`/`explain` (~0.6 s faster)
 - Removed the redundant `min_block_correlation` metric (superseded by the 5th-percentile block correlation)
+- True peak is measured natively (BS.1770-style 4x oversampling) — ffmpeg is no longer used; the `true_peak_available` JSON key was removed
+- Stereo width now measures decorrelation only (balance-compensated); pure panning reads 0 and hard-panned single-channel content reads null
+- Correlation of silent channels/blocks/bands is reported as null (unknown), not +1.0
 
 ## [0.1.0] - 2026-03-11
 
