@@ -129,6 +129,39 @@ class TestStereoAnalyzer:
         result = self.analyzer.compare(audio, ref)
         assert "width_difference" in result.metrics
 
+    def test_compare_hard_panned_target_width_difference_is_none(self, tmp_path, tmp_reference_wav):
+        """Target with undefined stereo_width (hard-panned) must not crash compare()."""
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        tone = 0.5 * np.sin(2 * np.pi * 440 * t)
+        stereo = np.column_stack([tone, np.zeros_like(tone)])
+        path = tmp_path / "hard_panned.wav"
+        sf.write(str(path), stereo, sr, subtype="FLOAT")
+
+        audio = load_audio(path)
+        ref = load_audio(tmp_reference_wav)
+        result = self.analyzer.compare(audio, ref)
+
+        assert result.metrics["stereo_width"] is None
+        assert result.metrics["width_difference"] is None
+
+    def test_compare_hard_panned_reference_width_difference_is_none(self, tmp_wav, tmp_path):
+        """Reference with undefined stereo_width (hard-panned) must not crash compare()."""
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        tone = 0.5 * np.sin(2 * np.pi * 440 * t)
+        stereo = np.column_stack([tone, np.zeros_like(tone)])
+        path = tmp_path / "hard_panned_ref.wav"
+        sf.write(str(path), stereo, sr, subtype="FLOAT")
+
+        audio = load_audio(tmp_wav)
+        ref = load_audio(path)
+        result = self.analyzer.compare(audio, ref)
+
+        assert result.metrics["width_difference"] is None
+        assert result.metrics["reference_width"] is None
+        assert result.metrics["reference_width"] is None
+
 
 class TestBalanceCompensatedWidth:
     def test_panned_mono_source_has_zero_width(self, tmp_path):

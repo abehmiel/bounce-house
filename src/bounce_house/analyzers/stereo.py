@@ -98,12 +98,20 @@ class StereoAnalyzer(AnalyzerBase):
         if result.metrics.get("mono_file") or ref_result.metrics.get("mono_file"):
             return result
 
-        result.metrics["width_difference"] = round(
-            result.metrics["stereo_width"] - ref_result.metrics["stereo_width"], 4
+        # width is undefined when either side has undefined stereo_width
+        width = result.metrics["stereo_width"]
+        ref_width = ref_result.metrics["stereo_width"]
+        result.metrics["width_difference"] = (
+            round(width - ref_width, 4) if width is not None and ref_width is not None else None
         )
-        result.metrics["correlation_difference"] = round(
-            result.metrics["phase_correlation"] - ref_result.metrics["phase_correlation"], 4
+
+        # difference is undefined when either side has undefined phase_correlation
+        corr = result.metrics["phase_correlation"]
+        ref_corr = ref_result.metrics["phase_correlation"]
+        result.metrics["correlation_difference"] = (
+            round(corr - ref_corr, 4) if corr is not None and ref_corr is not None else None
         )
+
         result.metrics["reference_width"] = ref_result.metrics["stereo_width"]
         result.metrics["reference_correlation"] = ref_result.metrics["phase_correlation"]
 
