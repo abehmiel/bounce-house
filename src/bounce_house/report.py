@@ -86,6 +86,22 @@ _METRIC_NAMES = {
     "low_end_reliance": "Low-End Reliance",
 }
 
+_SPARK_CHARS = "▁▂▃▄▅▆▇█"
+
+
+def _sparkline(values: list, lo: float, hi: float) -> str:
+    """Map values to eight-level block characters; None renders as a space."""
+    span = hi - lo if hi > lo else 1.0
+    chars = []
+    for v in values:
+        if v is None:
+            chars.append(" ")
+            continue
+        idx = int((min(max(v, lo), hi) - lo) / span * (len(_SPARK_CHARS) - 1))
+        chars.append(_SPARK_CHARS[idx])
+    return "".join(chars)
+
+
 _SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
 
 
@@ -192,18 +208,33 @@ def format_terminal(
             value_str = _format_value(key, value)
             lines.append(f"  {display_name:<22} {value_str}{status_str}")
 
+        rms_curve = result.metrics.get("rms_curve_db")
+        if rms_curve:
+            lo = max(min(rms_curve), -60.0)
+            spark = _sparkline(rms_curve, lo=lo, hi=max(rms_curve))
+            lines.append(f"  {'Level':<22} {_DIM}{spark}{_RESET}")
+
+        corr_curve = result.metrics.get("correlation_curve")
+        if corr_curve:
+            spark = _sparkline(corr_curve, lo=-1.0, hi=1.0)
+            lines.append(f"  {'Correlation':<22} {_DIM}{spark}{_RESET}")
+
         # Band energies
         if bands:
             lines.append("")
             for band_name, energy in bands.items():
                 label = band_name.replace("_", "-")
+                bar_len = int((min(max(energy, -40.0), 15.0) + 40.0) / 55.0 * 12)
+                bar = "█" * bar_len
                 diff_str = ""
                 if band_diffs and band_name in band_diffs:
                     diff = band_diffs[band_name]
                     if abs(diff) > 3.0:
                         color = _YELLOW if abs(diff) <= 6.0 else _RED
                         diff_str = f"  {color}{diff:+.1f} dB vs ref{_RESET}"
-                lines.append(f"  {label:<22} {energy:>8.1f} dB rel{diff_str}")
+                lines.append(
+                    f"  {label:<22} {energy:>8.1f} dB rel  {_DIM}{bar:<12}{_RESET}{diff_str}"
+                )
 
         # Frequency-dependent stereo width
         if freq_width:

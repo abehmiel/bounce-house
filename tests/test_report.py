@@ -471,3 +471,30 @@ class TestStrictJson:
 
         dirty = {"a": float("nan"), "b": [float("inf"), 1.5], "c": {"d": float("-inf")}}
         assert _sanitize(dirty) == {"a": None, "b": [None, 1.5], "c": {"d": None}}
+
+
+class TestSparklines:
+    def test_sparkline_maps_range(self):
+        from bounce_house.report import _sparkline
+
+        s = _sparkline([0.0, 0.5, 1.0], lo=0.0, hi=1.0)
+        assert s[0] == "▁"
+        assert s[-1] == "█"
+        assert len(s) == 3
+
+    def test_sparkline_handles_none(self):
+        from bounce_house.report import _sparkline
+
+        assert _sparkline([0.0, None, 1.0], lo=0.0, hi=1.0)[1] == " "
+
+    def test_report_contains_level_sparkline(self, tmp_wav):
+        from bounce_house.cli import _analyze_file
+        from bounce_house.profiles import get_profile
+        from bounce_house.report import format_terminal
+
+        data = _analyze_file(str(tmp_wav), profile=get_profile("master"))
+        out = format_terminal(
+            data["results"], data["path"], data["file_info"], diagnoses=data["diagnoses"]
+        )
+        assert "Level" in out
+        assert any(ch in out for ch in "▁▂▃▄▅▆▇█")
