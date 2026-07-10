@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.bounce_diff import BounceDiff, MetricChange
 from bounce_house.diagnostics import Diagnosis
 from bounce_house.metric_docs import METRICS, MODULE_TITLES, MODULES, MetricDoc
 
@@ -610,4 +611,80 @@ def format_dir_json(
         },
     }
 
+    return json.dumps(_sanitize(output), indent=2, allow_nan=False)
+
+
+def _diff_line(change: MetricChange, color: str) -> str:
+    arrow = "↑" if change.delta > 0 else "↓"
+    status = ""
+    if change.old_status and change.new_status and change.old_status != change.new_status:
+        status = f"  {change.old_status.upper()} → {change.new_status.upper()}"
+    return (
+        f"  {color}{arrow}{_RESET} {change.module}.{change.metric:<28}"
+        f" {change.old:+.2f} → {change.new:+.2f} ({change.delta:+.2f}){status}"
+    )
+
+
+def format_diff_terminal(diff: BounceDiff, old_path: str, new_path: str) -> str:
+    lines: list[str] = [""]
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(f"{_BOLD}  BOUNCE DIFF{_RESET}")
+    lines.append(f"{_DIM}  {old_path} → {new_path}{_RESET}")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+
+    if diff.improvements:
+        lines.append("")
+        lines.append(f"{_BOLD}── Improved {'─' * 47}{_RESET}")
+        lines.extend(_diff_line(c, _GREEN) for c in diff.improvements)
+    if diff.regressions:
+        lines.append("")
+        lines.append(f"{_BOLD}── Regressed {'─' * 46}{_RESET}")
+        lines.extend(_diff_line(c, _RED) for c in diff.regressions)
+    if diff.changes:
+        lines.append("")
+        lines.append(f"{_BOLD}── Changed {'─' * 48}{_RESET}")
+        lines.extend(_diff_line(c, _YELLOW) for c in diff.changes)
+
+    if diff.diagnostics_resolved or diff.diagnostics_introduced:
+        lines.append("")
+        lines.append(f"{_BOLD}── Diagnostics {'─' * 44}{_RESET}")
+        for name in diff.diagnostics_resolved:
+            lines.append(f"  {_GREEN}resolved{_RESET}   {name}")
+        for name in diff.diagnostics_introduced:
+            lines.append(f"  {_RED}introduced{_RESET} {name}")
+
+    lines.append("")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(
+        f"  {len(diff.improvements)} improved, {len(diff.regressions)} regressed,"
+        f" {len(diff.changes)} changed, {diff.unchanged_count} unchanged"
+    )
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def format_diff_json(diff: BounceDiff, old_path: str, new_path: str) -> str:
+    def _encode(change: MetricChange) -> dict:
+        return {
+            "module": change.module,
+            "metric": change.metric,
+            "old": change.old,
+            "new": change.new,
+            "delta": change.delta,
+            "old_status": change.old_status,
+            "new_status": change.new_status,
+        }
+
+    output = {
+        "schema_version": _SCHEMA_VERSION,
+        "old": old_path,
+        "new": new_path,
+        "improvements": [_encode(c) for c in diff.improvements],
+        "regressions": [_encode(c) for c in diff.regressions],
+        "changes": [_encode(c) for c in diff.changes],
+        "diagnostics_resolved": diff.diagnostics_resolved,
+        "diagnostics_introduced": diff.diagnostics_introduced,
+        "unchanged_count": diff.unchanged_count,
+    }
     return json.dumps(_sanitize(output), indent=2, allow_nan=False)

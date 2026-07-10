@@ -706,3 +706,33 @@ class TestLazyImports:
         )
         proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
         assert proc.returncode == 0, proc.stderr
+
+
+class TestDiffCommand:
+    def test_diff_runs_and_reports(self, tmp_wav, tmp_path, capsys):
+        import soundfile as sf
+
+        from bounce_house.audio import load_audio as _load
+
+        audio = _load(tmp_wav)
+        quieter = tmp_path / "v2.wav"
+        sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
+        code = main(["diff", str(tmp_wav), str(quieter)])
+        out = capsys.readouterr().out
+        assert "BOUNCE DIFF" in out
+        assert code in (0, 1)
+
+    def test_diff_json_schema(self, tmp_wav, tmp_path, capsys):
+        import soundfile as sf
+
+        from bounce_house.audio import load_audio as _load
+
+        audio = _load(tmp_wav)
+        quieter = tmp_path / "v2.wav"
+        sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
+        main(["diff", str(tmp_wav), str(quieter), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert data["schema_version"] == 2
+        assert data["old"].endswith(".wav") and data["new"].endswith(".wav")
+        assert "improvements" in data and "regressions" in data
+        assert "diagnostics_resolved" in data

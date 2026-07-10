@@ -151,6 +151,16 @@ def create_parser() -> argparse.ArgumentParser:
     )
     compare_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
+    # diff — bounce-over-bounce comparison
+    diff_parser = subparsers.add_parser(
+        "diff",
+        help="Diff two bounces of the same mix — what improved, what regressed",
+        parents=[stage_parent],
+    )
+    diff_parser.add_argument("old", help="Previous bounce (audio file)")
+    diff_parser.add_argument("new", help="New bounce (audio file)")
+    diff_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
     # explain — metric documentation
     explain_parser = subparsers.add_parser("explain", help="Explain analysis metrics")
     explain_parser.add_argument(
@@ -389,6 +399,29 @@ def _run_dir(
     return _batch_exit_code(file_data, errors)
 
 
+def _run_diff(old_path: str, new_path: str, use_json: bool = False, profile=None) -> int:
+    """Diff two bounces. Exit 0 = no regressions, 1 = regressions or new diagnostics."""
+    from bounce_house.bounce_diff import compute_diff
+    from bounce_house.report import format_diff_json, format_diff_terminal
+
+    try:
+        old_data = _analyze_file(old_path, profile=profile)
+        new_data = _analyze_file(new_path, profile=profile)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    diff = compute_diff(old_data, new_data)
+    if use_json:
+        print(format_diff_json(diff, old_path, new_path))
+    else:
+        _print_report(format_diff_terminal(diff, old_path, new_path))
+
+    if diff.regressions or diff.diagnostics_introduced:
+        return 1
+    return 0
+
+
 def _exit_code_for_results(results: list[AnalysisResult]) -> int:
     """Exit code from assessments: 0 = all pass, 1 = warnings, 2 = failures."""
     statuses = {a.status for r in results for a in r.assessments}
@@ -448,6 +481,8 @@ def main(argv: list[str] | None = None) -> int:
             profile=profile,
             genre=genre,
         )
+    elif args.command == "diff":
+        return _run_diff(args.old, args.new, use_json, profile=profile)
     elif args.command in MODULE_COMMANDS:
         analyzer = next(a for a in _load_analyzers() if a.name == args.command)
         return _run_analysis(args.file, None, [analyzer], use_json, profile=profile, genre=genre)
