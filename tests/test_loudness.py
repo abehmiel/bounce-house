@@ -225,3 +225,20 @@ class TestDrScore:
         # tmp_wav is 1 s — shorter than one 3 s DR block
         result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
         assert result.metrics["dr_score"] is None
+
+
+class TestRmsCurve:
+    def test_curve_has_at_most_50_points_and_tracks_level(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 2.0, 2 * sr, endpoint=False)
+        quiet = 0.05 * np.sin(2 * np.pi * 440 * t[:sr])
+        loud = 0.5 * np.sin(2 * np.pi * 440 * t[sr:])
+        signal = np.concatenate([quiet, loud])
+        sf.write(str(tmp_path / "ramp.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "ramp.wav"))
+        curve = result.metrics["rms_curve_db"]
+        assert len(curve) <= 50
+        # Second half is 20 dB louder than the first
+        assert curve[-1] - curve[0] == pytest.approx(20.0, abs=2.0)

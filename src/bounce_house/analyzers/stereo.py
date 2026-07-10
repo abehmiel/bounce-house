@@ -72,18 +72,33 @@ class StereoAnalyzer(AnalyzerBase):
         # Windowed phase correlation (50ms blocks)
         block_size = int(audio.sample_rate * 0.05)
         num_blocks = len(L) // block_size
-        block_corrs = []
+        block_values: list[float | None] = []
         for i in range(num_blocks):
             start = i * block_size
             end = start + block_size
             bl = L[start:end]
             br = R[start:end]
             if np.std(bl) > 1e-10 and np.std(br) > 1e-10:
-                block_corrs.append(float(np.corrcoef(bl, br)[0, 1]))
+                block_values.append(float(np.corrcoef(bl, br)[0, 1]))
+            else:
+                block_values.append(None)
+        block_corrs = [v for v in block_values if v is not None]
 
         metrics["low_block_correlation"] = (
             round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else None
         )
+
+        # Correlation over time, bucketed to <=50 points for report/JSON
+        points = min(50, len(block_values)) if block_values else 0
+        curve: list[float | None] = []
+        if points:
+            per_bucket = len(block_values) // points
+            for i in range(points):
+                bucket = [
+                    v for v in block_values[i * per_bucket : (i + 1) * per_bucket] if v is not None
+                ]
+                curve.append(round(float(np.mean(bucket)), 3) if bucket else None)
+        metrics["correlation_curve"] = curve
 
         # Frequency-dependent stereo width
         freq_width = self._frequency_stereo_width(L, R, audio.sample_rate)

@@ -25,6 +25,19 @@ def _true_peak_dbtp(samples: np.ndarray, sample_rate: int) -> float:
     return float(20.0 * np.log10(peak + 1e-10))
 
 
+def _rms_curve_db(samples: np.ndarray, points: int = 50) -> list[float]:
+    """Level-over-time: RMS of up to `points` equal segments, in dB (-100 floor)."""
+    n = samples.shape[0]
+    points = min(points, n)
+    seg = n // points
+    curve = []
+    for i in range(points):
+        chunk = samples[i * seg : (i + 1) * seg]
+        rms = float(np.sqrt(np.mean(chunk**2)))
+        curve.append(round(max(20.0 * np.log10(rms + 1e-10), -100.0), 1))
+    return curve
+
+
 def _dr_score(samples: np.ndarray, sample_rate: int) -> float | None:
     """TT/Pleasurize-style DR: second-highest block peak vs loudest-20% block RMS.
 
@@ -143,6 +156,8 @@ class LoudnessAnalyzer(AnalyzerBase):
             )
 
         metrics["dr_score"] = _dr_score(audio.samples, audio.sample_rate)
+
+        metrics["rms_curve_db"] = _rms_curve_db(audio.samples)
 
         return AnalysisResult(module=self.name, metrics=metrics)
 

@@ -258,6 +258,25 @@ _DR_SCORE = MetricDoc(
     aliases=["dr", "dr14", "dynamic_range"],
 )
 
+_RMS_CURVE = MetricDoc(
+    key="rms_curve_db",
+    name="Level Over Time",
+    module="loudness",
+    summary="RMS level curve across the track (up to 50 points).",
+    explanation=(
+        "A coarse loudness contour: spot sections that are much louder/quieter "
+        "than intended, missing dynamics between verse and chorus, or an export "
+        "that faded early."
+    ),
+    good_range="Informational",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: RMS in dB over up to 50 equal time segments, floor -100 dB. "
+        "Also intended for external plotting via --json."
+    ),
+    aliases=["level_curve", "loudness_curve"],
+)
+
 # --- Spectrum metrics ---
 
 _CENTROID = MetricDoc(
@@ -575,6 +594,25 @@ _FREQ_WIDTH = MetricDoc(
         "with nperseg=4096."
     ),
     aliases=["freq_width", "frequency_correlation", "band_width", "freq_stereo"],
+)
+
+_CORRELATION_CURVE = MetricDoc(
+    key="correlation_curve",
+    name="Correlation Over Time",
+    module="stereo",
+    summary="Stereo correlation curve across the track (up to 50 points).",
+    explanation=(
+        "Shows WHERE phase problems live: a dip to negative values in one "
+        "section points at a specific stereo effect or layered part, which a "
+        "single whole-track number hides."
+    ),
+    good_range="Informational",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: 50 ms Pearson block correlations averaged into up to 50 "
+        "buckets; silent buckets are null."
+    ),
+    aliases=["corr_curve", "phase_curve"],
 )
 
 # --- Translation metrics ---
@@ -987,6 +1025,7 @@ METRICS: dict[str, MetricDoc] = {
         _PLR,
         _DC_OFFSET,
         _DR_SCORE,
+        _RMS_CURVE,
         _CENTROID,
         _BANDWIDTH,
         _ROLLOFF,
@@ -1000,6 +1039,7 @@ METRICS: dict[str, MetricDoc] = {
         _BALANCE,
         _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
+        _CORRELATION_CURVE,
         _MONO_LOSS,
         _BAND_MONO_LOSS,
         _LOW_END_RELIANCE,
@@ -1032,6 +1072,7 @@ MODULES: dict[str, list[str]] = {
         "plr_db",
         "dc_offset_db",
         "dr_score",
+        "rms_curve_db",
     ],
     "spectrum": [
         "centroid_hz",
@@ -1049,6 +1090,7 @@ MODULES: dict[str, list[str]] = {
         "balance_db",
         "low_block_correlation",
         "frequency_width",
+        "correlation_curve",
     ],
     "translation": ["mono_loss_db", "band_mono_loss", "low_end_reliance"],
     "perceptual": ["brightness", "warmth", "timbral_brightness", "timbral_warmth"],

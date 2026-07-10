@@ -170,6 +170,8 @@ def format_terminal(
                 "frequency_width",
                 "band_ratios",
                 "band_mono_loss",
+                "rms_curve_db",
+                "correlation_curve",
             ):
                 continue
             # Skip reference/diff keys in main display

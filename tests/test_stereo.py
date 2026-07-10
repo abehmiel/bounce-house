@@ -214,3 +214,11 @@ class TestSilenceIsUnknown:
         result = StereoAnalyzer().analyze(load_audio(tmp_silent_wav))
         assessed = {a.metric for a in evaluate_rules(result)}
         assert "phase_correlation" not in assessed
+
+
+class TestCorrelationCurve:
+    def test_curve_present_and_bounded(self, tmp_wav):
+        result = StereoAnalyzer().analyze(load_audio(tmp_wav))
+        curve = result.metrics["correlation_curve"]
+        assert 1 <= len(curve) <= 50
+        assert all(c is None or -1.0 <= c <= 1.0 for c in curve)
