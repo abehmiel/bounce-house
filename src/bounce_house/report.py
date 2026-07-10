@@ -35,7 +35,6 @@ _MODULE_TITLES = {
 # Metrics to hide from terminal display entirely
 _SKIP_METRICS: frozenset[str] = frozenset(
     {
-        "true_peak_available",
         "timbral_models_available",
         "proxy_metrics",
         "mono_file",

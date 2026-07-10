@@ -60,22 +60,6 @@ class TestLoudnessAnalyzer:
         result = self.analyzer.analyze(audio)
         assert result.metrics["crest_factor_db"] is None
 
-    def test_true_peak_missing_key_returns_none(self, tmp_wav, monkeypatch):
-        """If ffmpeg JSON lacks input_tp, _measure_true_peak returns None."""
-        import json as json_mod
-        import subprocess
-
-        fake_json = json_mod.dumps({"input_i": "-14.0", "input_lra": "6.0"})
-        fake_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout="", stderr=f"header\n{fake_json}\n"
-        )
-        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
-        monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/ffmpeg")
-
-        audio = load_audio(tmp_wav)
-        result = self.analyzer._measure_true_peak(audio)
-        assert result is None
-
     def test_compare_returns_result(self, tmp_wav, tmp_reference_wav):
         audio = load_audio(tmp_wav)
         ref = load_audio(tmp_reference_wav)
@@ -149,18 +133,14 @@ class TestDcOffsetMetric:
         result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
         assert result.metrics["dc_offset_db"] < -60.0
 
-    def test_peak_reflects_raw_waveform_without_ffmpeg(self, tmp_path, monkeypatch):
+    def test_peak_reflects_raw_waveform(self, tmp_path):
         """Peak/headroom checks must see the delivered waveform, DC included.
 
         DC removal happens for RMS/crest/spectral, but the peak a converter
-        actually outputs includes the offset. On machines without ffmpeg the
-        true-peak fallback is the sample peak, so both must report the raw
-        peak or a hot DC-heavy file silently reads as safe.
+        actually outputs includes the offset, or a hot DC-heavy file silently
+        reads as safe.
         """
         import soundfile as sf
-
-        # ffmpeg absent → _measure_true_peak returns None → true_peak falls back to sample peak
-        monkeypatch.setattr("shutil.which", lambda x: None)
 
         sr = 44100
         t = np.linspace(0, 1.0, sr, endpoint=False)
@@ -171,9 +151,8 @@ class TestDcOffsetMetric:
 
         # Raw delivered peak 20*log10(0.4) ≈ -7.96 dBFS — NOT the DC-free -20 dBFS
         assert result.metrics["sample_peak_dbfs"] == pytest.approx(-7.96, abs=0.2)
-        assert result.metrics["true_peak_available"] is False
-        # Fallback true peak inherits the raw sample peak, not the DC-suppressed one
-        assert result.metrics["true_peak_dbtp"] == pytest.approx(-7.96, abs=0.2)
+        # True peak must be at least the sample peak (oversampling only finds higher peaks)
+        assert result.metrics["true_peak_dbtp"] >= result.metrics["sample_peak_dbfs"] - 0.1
 
 
 class TestPerChannelCrest:
@@ -199,3 +178,28 @@ class TestPerChannelCrest:
         sf.write(str(tmp_path / "center.wav"), np.column_stack([sine, sine]), sr, subtype="FLOAT")
         result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "center.wav"))
         assert result.metrics["crest_factor_db"] == pytest.approx(3.0, abs=0.2)
+
+
+class TestNativeTruePeak:
+    def test_intersample_peak_detected(self, tmp_path):
+        import soundfile as sf
+
+        # Classic inter-sample-over: fs/4 sine with 45-degree phase offset.
+        # Samples only ever hit ±0.7071 of the amplitude; the reconstructed
+        # waveform peaks at the full amplitude between samples.
+        sr = 44100
+        n = np.arange(sr)
+        signal = 0.9 * np.sin(np.pi * n / 2 + np.pi / 4)
+        sf.write(str(tmp_path / "isp.wav"), np.column_stack([signal, signal]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "isp.wav"))
+        # Sample peak reads ~0.9*0.7071 → -3.9 dBFS; true peak must find ~0.9 → -0.9 dBTP
+        assert result.metrics["sample_peak_dbfs"] == pytest.approx(-3.9, abs=0.3)
+        assert result.metrics["true_peak_dbtp"] == pytest.approx(-0.9, abs=0.3)
+
+    def test_true_peak_at_least_sample_peak(self, tmp_wav):
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
+        assert result.metrics["true_peak_dbtp"] >= result.metrics["sample_peak_dbfs"] - 0.1
+
+    def test_availability_flag_removed(self, tmp_wav):
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
+        assert "true_peak_available" not in result.metrics

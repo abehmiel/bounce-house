@@ -96,10 +96,10 @@ _TRUE_PEAK = MetricDoc(
         "mastering engineers use -1.5 dBTP for extra safety."
     ),
     technical=(
-        "Standard: ITU-R BS.1770-5. Measured using minimum 4x oversampling. "
-        "bounce-house uses ffmpeg's loudnorm filter for true peak measurement, "
-        "falling back to sample peak when ffmpeg is unavailable. "
-        "EBU R128 specifies max -1.0 dBTP. Apple Music requires -1.0 dBTP."
+        "Standard: ITU-R BS.1770-4 Annex 2 (approximated). Method: 4x polyphase "
+        "FIR oversampling (2x at >=96 kHz sample rates) via scipy.signal."
+        "resample_poly, then peak magnitude in dBTP. Measured natively — no "
+        "external tools required."
     ),
     aliases=["true_peak", "tp", "dbtp", "peak", "inter_sample"],
 )

@@ -62,8 +62,6 @@ uv sync --extra perceptual
 # or: pip install ".[perceptual]"
 ```
 
-**True peak measurement** — install [ffmpeg](https://ffmpeg.org/) for inter-sample true peak detection via the `loudnorm` filter. Without ffmpeg, bounce-house falls back to sample peak measurement.
-
 ## Usage
 
 ### Full analysis
@@ -423,7 +421,7 @@ audio.py          Load via soundfile → AudioData (samples, sr, channels)
   │
   ▼
 analyzers/        Each analyzer extends BaseAnalyzer
-  ├── loudness    EBU R128 via pyloudnorm, crest factor, true peak (ffmpeg)
+  ├── loudness    EBU R128 via pyloudnorm, crest factor, true peak
   ├── spectrum    librosa spectral features + 7-band energy via STFT
   ├── stereo      Phase correlation, M/S decomposition, frequency-dependent width
   ├── translation Mono-sum loss, per-band mono cancellation, low-end reliance
@@ -464,7 +462,7 @@ Bounce House combines multi-domain analysis (loudness + spectrum + stereo + tran
 
 Core: `soundfile`, `numpy`, `scipy`, `pyloudnorm`, `librosa`, `rich`
 
-Optional: `timbral_models` (perceptual analysis), `ffmpeg` (true peak measurement)
+Optional: `timbral_models` (perceptual analysis)
 
 ## Development
 
