@@ -160,7 +160,7 @@ class TestStereoAnalyzer:
 
         assert result.metrics["width_difference"] is None
         assert result.metrics["reference_width"] is None
-        assert result.metrics["reference_width"] is None
+        assert result.metrics["reference_correlation"] is None
 
 
 class TestBalanceCompensatedWidth:
