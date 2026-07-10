@@ -49,14 +49,25 @@ class StereoAnalyzer(AnalyzerBase):
         metrics["side_rms_db"] = round(20 * np.log10(side_rms + 1e-10), 1)
         metrics["ms_ratio_db"] = round(metrics["mid_rms_db"] - metrics["side_rms_db"], 1)
 
-        # Stereo width: 0 = mono, 0.5 = equal mid/side
-        total = mid_rms + side_rms
-        metrics["stereo_width"] = round(side_rms / total if total > 0 else 0.0, 4)
-
         # Channel balance
-        l_rms_db = 20 * np.log10(float(np.sqrt(np.mean(L**2))) + 1e-10)
-        r_rms_db = 20 * np.log10(float(np.sqrt(np.mean(R**2))) + 1e-10)
+        l_rms = float(np.sqrt(np.mean(L**2)))
+        r_rms = float(np.sqrt(np.mean(R**2)))
+        l_rms_db = 20 * np.log10(l_rms + 1e-10)
+        r_rms_db = 20 * np.log10(r_rms + 1e-10)
         metrics["balance_db"] = round(l_rms_db - r_rms_db, 1)
+
+        # Stereo width measures DECORRELATION, not panning: normalize channels to
+        # equal RMS first so a panned mono source reads 0. Pure imbalance is
+        # balance_db's job; width is undefined when a channel is silent.
+        if l_rms > 1e-10 and r_rms > 1e-10:
+            Ln = L / l_rms
+            Rn = R / r_rms
+            mid_n_rms = float(np.sqrt(np.mean(((Ln + Rn) / 2.0) ** 2)))
+            side_n_rms = float(np.sqrt(np.mean(((Ln - Rn) / 2.0) ** 2)))
+            total_n = mid_n_rms + side_n_rms
+            metrics["stereo_width"] = round(side_n_rms / total_n, 4) if total_n > 0 else None
+        else:
+            metrics["stereo_width"] = None
 
         # Windowed phase correlation (50ms blocks)
         block_size = int(audio.sample_rate * 0.05)

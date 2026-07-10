@@ -1,6 +1,7 @@
 """Tests for stereo imaging and phase analyzer."""
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from bounce_house.analyzers.stereo import StereoAnalyzer
@@ -127,6 +128,40 @@ class TestStereoAnalyzer:
         ref = load_audio(tmp_reference_wav)
         result = self.analyzer.compare(audio, ref)
         assert "width_difference" in result.metrics
+
+
+class TestBalanceCompensatedWidth:
+    def test_panned_mono_source_has_zero_width(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        tone = 0.5 * np.sin(2 * np.pi * 440 * t)
+        # Same waveform, unequal levels: panned, but zero decorrelation
+        stereo = np.column_stack([tone, 0.3 * tone])
+        sf.write(str(tmp_path / "panned.wav"), stereo, sr, subtype="FLOAT")
+        result = StereoAnalyzer().analyze(load_audio(tmp_path / "panned.wav"))
+        assert result.metrics["stereo_width"] == pytest.approx(0.0, abs=0.02)
+
+    def test_decorrelated_noise_is_wide(self, tmp_pink_wav):
+        result = StereoAnalyzer().analyze(load_audio(tmp_pink_wav))
+        # Independent L/R noise: near-equal mid and side energy → width ≈ 0.5
+        assert result.metrics["stereo_width"] == pytest.approx(0.5, abs=0.08)
+
+    def test_hard_panned_single_channel_width_is_none(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False)
+        tone = 0.5 * np.sin(2 * np.pi * 440 * t)
+        sf.write(
+            str(tmp_path / "hard.wav"),
+            np.column_stack([tone, np.zeros_like(tone)]),
+            sr,
+            subtype="FLOAT",
+        )
+        result = StereoAnalyzer().analyze(load_audio(tmp_path / "hard.wav"))
+        assert result.metrics["stereo_width"] is None  # pure pan: width undefined
 
 
 class TestSilenceIsUnknown:

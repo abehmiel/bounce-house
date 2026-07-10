@@ -485,9 +485,11 @@ _STEREO_WIDTH = MetricDoc(
     module="stereo",
     summary="Side-to-total energy ratio — 0.0 is mono, 0.5 is equal M/S.",
     explanation=(
-        "The ratio of side RMS to (mid RMS + side RMS). 0.0 means purely "
-        "mono. 0.5 means equal mid and side energy (extremely wide). "
-        "Typical mixes sit between 0.2 and 0.4."
+        "How decorrelated the left and right channels are, after compensating "
+        "for level imbalance: 0 means the two channels carry the same signal "
+        "(even if panned), 0.5 means fully independent content. Pure panning "
+        "does not count as width — check Channel Balance for that. Width is "
+        "undefined (not reported) when one channel is silent."
     ),
     good_range="0.2 to 0.4",
     genre_notes=(
@@ -498,6 +500,8 @@ _STEREO_WIDTH = MetricDoc(
     technical=(
         "Method: side_rms / (mid_rms + side_rms) where mid=(L+R)/2 and "
         "side=(L-R)/2. Ranges from 0.0 (mono) to 0.5 (equal mid/side)."
+        " Channels are normalized to equal RMS before the M/S split so panning "
+        "does not register as width."
     ),
     aliases=["width", "stereo_width", "image_width"],
 )
