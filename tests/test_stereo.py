@@ -80,18 +80,17 @@ class TestStereoAnalyzer:
         assert result.metrics.get("mono_file") is True
 
     def test_silent_file_phase_correlation_not_nan(self, tmp_silent_wav):
-        """Silent stereo file must not produce NaN phase_correlation."""
+        """Silent stereo file must not produce NaN phase_correlation; it's unknown (None)."""
         audio = load_audio(tmp_silent_wav)
         result = self.analyzer.analyze(audio)
         corr = result.metrics["phase_correlation"]
-        assert corr == corr  # NaN != NaN
-        assert corr == 1.0
+        assert corr is None
 
     def test_silent_file_low_block_correlation_not_zero(self, tmp_silent_wav):
-        """Silent file: no bad blocks found, so low_block_correlation should be 1.0."""
+        """Silent file: correlation is undefined, so low_block_correlation is None."""
         audio = load_audio(tmp_silent_wav)
         result = self.analyzer.analyze(audio)
-        assert result.metrics["low_block_correlation"] == 1.0
+        assert result.metrics["low_block_correlation"] is None
 
     def test_silent_file_no_fail_assessments(self, tmp_silent_wav):
         """Silent file must not trigger false FAIL on phase/correlation metrics.
@@ -128,3 +127,22 @@ class TestStereoAnalyzer:
         ref = load_audio(tmp_reference_wav)
         result = self.analyzer.compare(audio, ref)
         assert "width_difference" in result.metrics
+
+
+class TestSilenceIsUnknown:
+    def test_silent_file_correlation_is_none(self, tmp_silent_wav):
+        result = StereoAnalyzer().analyze(load_audio(tmp_silent_wav))
+        assert result.metrics["phase_correlation"] is None
+        assert result.metrics["low_block_correlation"] is None
+
+    def test_silent_band_correlation_is_none(self, tmp_wav):
+        # 440 Hz sine has no energy in the air band (8-20 kHz)
+        result = StereoAnalyzer().analyze(load_audio(tmp_wav))
+        assert result.metrics["frequency_width"]["air"] is None
+
+    def test_silent_file_not_assessed_for_correlation(self, tmp_silent_wav):
+        from bounce_house.rules import evaluate_rules
+
+        result = StereoAnalyzer().analyze(load_audio(tmp_silent_wav))
+        assessed = {a.metric for a in evaluate_rules(result)}
+        assert "phase_correlation" not in assessed

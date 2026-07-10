@@ -209,7 +209,8 @@ def format_terminal(
             lines.append(f"  {_DIM}Frequency-dependent correlation:{_RESET}")
             for band_name, corr in freq_width.items():
                 label = band_name.replace("_", "-")
-                lines.append(f"    {label:<18} {corr:+.3f}")
+                corr_str = f"{corr:+.3f}" if corr is not None else "  n/a"
+                lines.append(f"    {label:<18} {corr_str}")
 
         band_mono_loss = result.metrics.get("band_mono_loss")
         if band_mono_loss:

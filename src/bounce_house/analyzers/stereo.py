@@ -34,10 +34,10 @@ class StereoAnalyzer(AnalyzerBase):
 
         # Phase correlation (Pearson) — guard against silent/constant channels
         if np.std(L) > 1e-10 and np.std(R) > 1e-10:
-            correlation = float(np.corrcoef(L, R)[0, 1])
+            correlation = round(float(np.corrcoef(L, R)[0, 1]), 4)
         else:
-            correlation = 1.0  # silence = identical channels = perfectly correlated
-        metrics["phase_correlation"] = round(correlation, 4)
+            correlation = None  # silence: correlation is undefined, not perfect
+        metrics["phase_correlation"] = correlation
 
         # M/S decomposition
         mid = (L + R) / 2.0
@@ -71,7 +71,7 @@ class StereoAnalyzer(AnalyzerBase):
                 block_corrs.append(float(np.corrcoef(bl, br)[0, 1]))
 
         metrics["low_block_correlation"] = (
-            round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else 1.0
+            round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else None
         )
 
         # Frequency-dependent stereo width
@@ -100,12 +100,12 @@ class StereoAnalyzer(AnalyzerBase):
 
     def _frequency_stereo_width(
         self, L: np.ndarray, R: np.ndarray, sr: int, nperseg: int = 4096
-    ) -> dict[str, float]:
+    ) -> dict[str, float | None]:
         """Compute per-band correlation between L and R channels."""
         f, _, Zl = stft(L, sr, nperseg=nperseg)
         _, _, Zr = stft(R, sr, nperseg=nperseg)
 
-        result = {}
+        result: dict[str, float | None] = {}
         for band_name, lo, hi in FREQ_BANDS:
             mask = (f >= lo) & (f < hi)
             if not np.any(mask):
@@ -117,10 +117,9 @@ class StereoAnalyzer(AnalyzerBase):
             power_r = np.mean(np.abs(Zr_band) ** 2)
             denom = np.sqrt(power_l * power_r)
             if denom < 1e-10:
-                corr = 1.0  # silent band = perfectly correlated
-            else:
-                cross = np.mean(np.real(Zl_band * np.conj(Zr_band)))
-                corr = float(cross / denom)
-            result[band_name] = round(corr, 4)
+                result[band_name] = None  # silent band: correlation undefined
+                continue
+            cross = np.mean(np.real(Zl_band * np.conj(Zr_band)))
+            result[band_name] = round(float(cross / denom), 4)
 
         return result
