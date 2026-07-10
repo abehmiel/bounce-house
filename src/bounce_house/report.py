@@ -51,6 +51,7 @@ _METRIC_NAMES = {
     "crest_factor_db": "Crest Factor",
     "plr_db": "PLR",
     "dc_offset_db": "DC Offset",
+    "dr_score": "DR (Dynamic Range)",
     "centroid_hz": "Centroid",
     "bandwidth_hz": "Bandwidth",
     "rolloff_hz": "Rolloff (85%)",

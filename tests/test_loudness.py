@@ -203,3 +203,25 @@ class TestNativeTruePeak:
     def test_availability_flag_removed(self, tmp_wav):
         result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
         assert "true_peak_available" not in result.metrics
+
+
+class TestDrScore:
+    def test_constant_sine_has_near_zero_dr(self, tmp_path):
+        import soundfile as sf
+
+        sr = 44100
+        t = np.linspace(0, 7.0, 7 * sr, endpoint=False)  # >2 blocks of 3 s
+        sine = 0.5 * np.sin(2 * np.pi * 440 * t)
+        sf.write(str(tmp_path / "flat.wav"), np.column_stack([sine, sine]), sr, subtype="FLOAT")
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_path / "flat.wav"))
+        # Doubled-energy RMS of a sine equals its peak → DR ≈ 0 (maximally squashed)
+        assert result.metrics["dr_score"] == pytest.approx(0.0, abs=1.0)
+
+    def test_noise_has_positive_dr(self, tmp_pink_wav):
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_pink_wav))
+        assert 2.0 < result.metrics["dr_score"] < 15.0
+
+    def test_short_file_returns_none(self, tmp_wav):
+        # tmp_wav is 1 s — shorter than one 3 s DR block
+        result = LoudnessAnalyzer().analyze(load_audio(tmp_wav))
+        assert result.metrics["dr_score"] is None

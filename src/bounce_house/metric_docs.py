@@ -232,6 +232,32 @@ _DC_OFFSET = MetricDoc(
     aliases=["dc", "dc_offset", "offset"],
 )
 
+_DR_SCORE = MetricDoc(
+    key="dr_score",
+    name="DR (Dynamic Range)",
+    module="loudness",
+    summary="Loud-passage dynamic range in the TT/Pleasurize DR convention.",
+    explanation=(
+        "The DR value compares the loudest 20% of 3-second passages against "
+        "their peaks — the number mixing communities trade in ('this master "
+        "is DR6'). Unlike crest factor (instantaneous) or LRA (quiet-to-loud "
+        "spread), DR asks whether your LOUD sections still breathe."
+    ),
+    good_range="Above 7",
+    genre_notes=(
+        "Loud modern masters: DR5-7. Dynamic rock/indie: DR8-12. "
+        "Acoustic/jazz/classical: DR12+. Below DR5 almost always sounds "
+        "fatiguing on repeat listens."
+    ),
+    technical=(
+        "Method: per channel, 3 s blocks; block RMS = sqrt(2*mean(x^2)) per "
+        "the DR convention; DR = 20*log10(second-highest block peak / "
+        "quadratic mean of loudest 20% of block RMS values), averaged over "
+        "channels. Files under 3 s report no DR."
+    ),
+    aliases=["dr", "dr14", "dynamic_range"],
+)
+
 # --- Spectrum metrics ---
 
 _CENTROID = MetricDoc(
@@ -956,6 +982,7 @@ METRICS: dict[str, MetricDoc] = {
         _CREST_FACTOR,
         _PLR,
         _DC_OFFSET,
+        _DR_SCORE,
         _CENTROID,
         _BANDWIDTH,
         _ROLLOFF,
@@ -1000,6 +1027,7 @@ MODULES: dict[str, list[str]] = {
         "crest_factor_db",
         "plr_db",
         "dc_offset_db",
+        "dr_score",
     ],
     "spectrum": [
         "centroid_hz",

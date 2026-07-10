@@ -25,6 +25,32 @@ def _true_peak_dbtp(samples: np.ndarray, sample_rate: int) -> float:
     return float(20.0 * np.log10(peak + 1e-10))
 
 
+def _dr_score(samples: np.ndarray, sample_rate: int) -> float | None:
+    """TT/Pleasurize-style DR: second-highest block peak vs loudest-20% block RMS.
+
+    Uses 3 s blocks and the DR convention's doubled-energy RMS
+    (sqrt(2*mean(x^2))). Returns None for audio shorter than one block.
+    """
+    block = 3 * sample_rate
+    n_blocks = samples.shape[0] // block
+    if n_blocks < 1:
+        return None
+
+    channel_dr = []
+    for ch in range(samples.shape[1]):
+        x = samples[: n_blocks * block, ch].reshape(n_blocks, block)
+        block_rms = np.sqrt(2.0 * np.mean(x**2, axis=1))
+        block_peaks = np.sort(np.max(np.abs(x), axis=1))
+        p2 = block_peaks[-2] if n_blocks >= 2 else block_peaks[-1]
+        k = max(1, int(round(0.2 * n_blocks)))
+        loudest = np.sort(block_rms)[-k:]
+        rms20 = float(np.sqrt(np.mean(loudest**2)))
+        if rms20 > 1e-10 and p2 > 1e-10:
+            channel_dr.append(20.0 * np.log10(p2 / rms20))
+
+    return round(float(np.mean(channel_dr)), 1) if channel_dr else None
+
+
 class LoudnessAnalyzer(AnalyzerBase):
     """Measure integrated LUFS, LRA, sample peak, true peak, RMS, and crest factor."""
 
@@ -45,6 +71,8 @@ class LoudnessAnalyzer(AnalyzerBase):
             crest_factor_db (float): Per-channel peak-to-RMS ratio in dB, averaged over
                 active channels.
             dc_offset_db (float): DC offset removed at load, in dBFS (informational).
+            dr_score (float | None): TT/Pleasurize-style dynamic range score, or None
+                for audio shorter than one 3 s block.
         """
         metrics: dict = {}
 
@@ -113,6 +141,8 @@ class LoudnessAnalyzer(AnalyzerBase):
             metrics["plr_db"] = round(
                 float(metrics["true_peak_dbtp"]) - float(metrics["integrated_lufs"]), 1
             )
+
+        metrics["dr_score"] = _dr_score(audio.samples, audio.sample_rate)
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
