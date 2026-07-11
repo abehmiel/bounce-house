@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bounce_house.analyzers.base import AnalysisResult, Assessment
+from bounce_house.bounce_diff import BounceDiff, MetricChange
 from bounce_house.diagnostics import Diagnosis
 from bounce_house.metric_docs import METRICS, MODULE_TITLES, MODULES, MetricDoc
 
@@ -35,7 +36,6 @@ _MODULE_TITLES = {
 # Metrics to hide from terminal display entirely
 _SKIP_METRICS: frozenset[str] = frozenset(
     {
-        "true_peak_available",
         "timbral_models_available",
         "proxy_metrics",
         "mono_file",
@@ -52,6 +52,7 @@ _METRIC_NAMES = {
     "crest_factor_db": "Crest Factor",
     "plr_db": "PLR",
     "dc_offset_db": "DC Offset",
+    "dr_score": "DR (Dynamic Range)",
     "centroid_hz": "Centroid",
     "bandwidth_hz": "Bandwidth",
     "rolloff_hz": "Rolloff (85%)",
@@ -85,6 +86,23 @@ _METRIC_NAMES = {
     "worst_band_loss_db": "Worst Band Loss",
     "low_end_reliance": "Low-End Reliance",
 }
+
+_SPARK_CHARS = "▁▂▃▄▅▆▇█"
+
+
+def _sparkline(values: list, lo: float, hi: float) -> str:
+    """Map values to eight-level block characters; None renders as a space."""
+    span = hi - lo if hi > lo else 1.0
+    chars = []
+    for v in values:
+        if v is None:
+            chars.append(" ")
+            continue
+        idx = int((min(max(v, lo), hi) - lo) / span * (len(_SPARK_CHARS) - 1))
+        idx = min(max(idx, 0), len(_SPARK_CHARS) - 1)
+        chars.append(_SPARK_CHARS[idx])
+    return "".join(chars)
+
 
 _SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
 
@@ -170,6 +188,8 @@ def format_terminal(
                 "frequency_width",
                 "band_ratios",
                 "band_mono_loss",
+                "rms_curve_db",
+                "correlation_curve",
             ):
                 continue
             # Skip reference/diff keys in main display
@@ -190,18 +210,33 @@ def format_terminal(
             value_str = _format_value(key, value)
             lines.append(f"  {display_name:<22} {value_str}{status_str}")
 
+        rms_curve = result.metrics.get("rms_curve_db")
+        if rms_curve:
+            lo = min(max(min(rms_curve), -60.0), max(rms_curve))
+            spark = _sparkline(rms_curve, lo=lo, hi=max(rms_curve))
+            lines.append(f"  {'Level':<22} {_DIM}{spark}{_RESET}")
+
+        corr_curve = result.metrics.get("correlation_curve")
+        if corr_curve:
+            spark = _sparkline(corr_curve, lo=-1.0, hi=1.0)
+            lines.append(f"  {'Correlation':<22} {_DIM}{spark}{_RESET}")
+
         # Band energies
         if bands:
             lines.append("")
             for band_name, energy in bands.items():
                 label = band_name.replace("_", "-")
+                bar_len = int((min(max(energy, -40.0), 15.0) + 40.0) / 55.0 * 12)
+                bar = "█" * bar_len
                 diff_str = ""
                 if band_diffs and band_name in band_diffs:
                     diff = band_diffs[band_name]
                     if abs(diff) > 3.0:
                         color = _YELLOW if abs(diff) <= 6.0 else _RED
                         diff_str = f"  {color}{diff:+.1f} dB vs ref{_RESET}"
-                lines.append(f"  {label:<22} {energy:>8.1f} dB rel{diff_str}")
+                lines.append(
+                    f"  {label:<22} {energy:>8.1f} dB rel  {_DIM}{bar:<12}{_RESET}{diff_str}"
+                )
 
         # Frequency-dependent stereo width
         if freq_width:
@@ -209,7 +244,8 @@ def format_terminal(
             lines.append(f"  {_DIM}Frequency-dependent correlation:{_RESET}")
             for band_name, corr in freq_width.items():
                 label = band_name.replace("_", "-")
-                lines.append(f"    {label:<18} {corr:+.3f}")
+                corr_str = f"{corr:+.3f}" if corr is not None else "  n/a"
+                lines.append(f"    {label:<18} {corr_str}")
 
         band_mono_loss = result.metrics.get("band_mono_loss")
         if band_mono_loss:
@@ -576,4 +612,85 @@ def format_dir_json(
         },
     }
 
+    return json.dumps(_sanitize(output), indent=2, allow_nan=False)
+
+
+def _diff_line(change: MetricChange, color: str) -> str:
+    arrow = "↑" if change.delta > 0 else "↓"
+    status = ""
+    if change.old_status and change.new_status and change.old_status != change.new_status:
+        status = f"  {change.old_status.upper()} → {change.new_status.upper()}"
+    return (
+        f"  {color}{arrow}{_RESET} {change.module}.{change.metric:<28}"
+        f" {change.old:+.2f} → {change.new:+.2f} ({change.delta:+.2f}){status}"
+    )
+
+
+def format_diff_terminal(diff: BounceDiff, old_path: str, new_path: str, genre=None) -> str:
+    lines: list[str] = [""]
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(f"{_BOLD}  BOUNCE DIFF{_RESET}")
+    lines.append(f"{_DIM}  {old_path} → {new_path}{_RESET}")
+    if genre is not None:
+        tag = " (provisional targets)" if genre.provisional else ""
+        lines.append(f"{_DIM}  Genre targets: {genre.display_name}{tag}{_RESET}")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+
+    if diff.improvements:
+        lines.append("")
+        lines.append(f"{_BOLD}── Improved {'─' * 47}{_RESET}")
+        lines.extend(_diff_line(c, _GREEN) for c in diff.improvements)
+    if diff.regressions:
+        lines.append("")
+        lines.append(f"{_BOLD}── Regressed {'─' * 46}{_RESET}")
+        lines.extend(_diff_line(c, _RED) for c in diff.regressions)
+    if diff.changes:
+        lines.append("")
+        lines.append(f"{_BOLD}── Changed {'─' * 48}{_RESET}")
+        lines.extend(_diff_line(c, _YELLOW) for c in diff.changes)
+
+    if diff.diagnostics_resolved or diff.diagnostics_introduced:
+        lines.append("")
+        lines.append(f"{_BOLD}── Diagnostics {'─' * 44}{_RESET}")
+        for name in diff.diagnostics_resolved:
+            lines.append(f"  {_GREEN}resolved{_RESET}   {name}")
+        for name in diff.diagnostics_introduced:
+            lines.append(f"  {_RED}introduced{_RESET} {name}")
+
+    lines.append("")
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append(
+        f"  {len(diff.improvements)} improved, {len(diff.regressions)} regressed,"
+        f" {len(diff.changes)} changed, {diff.unchanged_count} unchanged"
+    )
+    lines.append(f"{_BOLD}{'═' * 60}{_RESET}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def format_diff_json(diff: BounceDiff, old_path: str, new_path: str, genre=None) -> str:
+    def _encode(change: MetricChange) -> dict:
+        return {
+            "module": change.module,
+            "metric": change.metric,
+            "old": change.old,
+            "new": change.new,
+            "delta": change.delta,
+            "old_status": change.old_status,
+            "new_status": change.new_status,
+        }
+
+    output = {
+        "schema_version": _SCHEMA_VERSION,
+        "old": old_path,
+        "new": new_path,
+        "genre": genre.name if genre is not None else None,
+        "genre_provisional": genre.provisional if genre is not None else None,
+        "improvements": [_encode(c) for c in diff.improvements],
+        "regressions": [_encode(c) for c in diff.regressions],
+        "changes": [_encode(c) for c in diff.changes],
+        "diagnostics_resolved": diff.diagnostics_resolved,
+        "diagnostics_introduced": diff.diagnostics_introduced,
+        "unchanged_count": diff.unchanged_count,
+    }
     return json.dumps(_sanitize(output), indent=2, allow_nan=False)

@@ -27,6 +27,8 @@ class TestMetricDocStructure:
             "crest_factor_db",
             "plr_db",
             "dc_offset_db",
+            "dr_score",
+            "rms_curve_db",
         }
         assert set(loudness_keys) == expected
 
@@ -52,6 +54,7 @@ class TestMetricDocStructure:
             "balance_db",
             "low_block_correlation",
             "frequency_width",
+            "correlation_curve",
         }
         assert set(stereo_keys) == expected
 

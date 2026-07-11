@@ -2,15 +2,68 @@
 
 from __future__ import annotations
 
-import json
-import shutil
-import subprocess
-
 import numpy as np
 import pyloudnorm as pyln
+from scipy.signal import resample_poly
 
 from bounce_house.analyzers.base import AnalysisResult, AnalyzerBase
 from bounce_house.audio import AudioData
+
+
+def _true_peak_dbtp(samples: np.ndarray, sample_rate: int) -> float:
+    """True peak per ITU-R BS.1770-4: oversample and take the max magnitude.
+
+    4x oversampling for common rates; 2x is sufficient at >=96 kHz.
+    resample_poly's Kaiser-windowed polyphase FIR approximates the Annex 2
+    interpolation filter within its stated tolerances.
+    """
+    factor = 2 if sample_rate >= 96000 else 4
+    peak = 0.0
+    for ch in range(samples.shape[1]):
+        upsampled = resample_poly(samples[:, ch], factor, 1)
+        peak = max(peak, float(np.max(np.abs(upsampled))))
+    return float(20.0 * np.log10(peak + 1e-10))
+
+
+def _rms_curve_db(samples: np.ndarray, points: int = 50) -> list[float]:
+    """Level-over-time: RMS of up to `points` equal segments, in dB (-100 floor)."""
+    n = samples.shape[0]
+    if n == 0:
+        return []
+    points = min(points, n)
+    seg = n // points
+    curve = []
+    for i in range(points):
+        chunk = samples[i * seg : (i + 1) * seg]
+        rms = float(np.sqrt(np.mean(chunk**2)))
+        curve.append(round(max(20.0 * np.log10(rms + 1e-10), -100.0), 1))
+    return curve
+
+
+def _dr_score(samples: np.ndarray, sample_rate: int) -> float | None:
+    """TT/Pleasurize-style DR: second-highest block peak vs loudest-20% block RMS.
+
+    Uses 3 s blocks and the DR convention's doubled-energy RMS
+    (sqrt(2*mean(x^2))). Returns None for audio shorter than one block.
+    """
+    block = 3 * sample_rate
+    n_blocks = samples.shape[0] // block
+    if n_blocks < 1:
+        return None
+
+    channel_dr = []
+    for ch in range(samples.shape[1]):
+        x = samples[: n_blocks * block, ch].reshape(n_blocks, block)
+        block_rms = np.sqrt(2.0 * np.mean(x**2, axis=1))
+        block_peaks = np.sort(np.max(np.abs(x), axis=1))
+        p2 = block_peaks[-2] if n_blocks >= 2 else block_peaks[-1]
+        k = max(1, int(round(0.2 * n_blocks)))
+        loudest = np.sort(block_rms)[-k:]
+        rms20 = float(np.sqrt(np.mean(loudest**2)))
+        if rms20 > 1e-10 and p2 > 1e-10:
+            channel_dr.append(20.0 * np.log10(p2 / rms20))
+
+    return round(float(np.mean(channel_dr)), 1) if channel_dr else None
 
 
 class LoudnessAnalyzer(AnalyzerBase):
@@ -28,12 +81,13 @@ class LoudnessAnalyzer(AnalyzerBase):
             loudness_range_lu (float | None): Loudness range in LU, or None if unavailable.
             sample_peak_dbfs (float): Peak of the delivered waveform in dBFS,
                 measured before DC removal (DC consumes real headroom).
-            true_peak_dbtp (float): True peak in dBTP via ffmpeg; falls back to sample peak.
-            true_peak_available (bool): Whether ffmpeg-based true peak was measured.
+            true_peak_dbtp (float): True peak in dBTP via native polyphase oversampling.
             rms_db (float): RMS level in dB.
             crest_factor_db (float): Per-channel peak-to-RMS ratio in dB, averaged over
                 active channels.
             dc_offset_db (float): DC offset removed at load, in dBFS (informational).
+            dr_score (float | None): TT/Pleasurize-style dynamic range score, or None
+                for audio shorter than one 3 s block.
         """
         metrics: dict = {}
 
@@ -69,12 +123,10 @@ class LoudnessAnalyzer(AnalyzerBase):
         sample_peak_db = 20.0 * np.log10(headroom_peak + 1e-10)
         metrics["sample_peak_dbfs"] = round(float(sample_peak_db), 1)
 
-        # True peak via ffmpeg; fall back to sample peak when ffmpeg is unavailable.
-        true_peak = self._measure_true_peak(audio)
-        metrics["true_peak_dbtp"] = (
-            true_peak if true_peak is not None else metrics["sample_peak_dbfs"]
-        )
-        metrics["true_peak_available"] = true_peak is not None
+        # True peak: native BS.1770-4-style oversampled measurement, on the same
+        # pre-DC-removal waveform as sample_peak_dbfs (DC consumes real headroom).
+        headroom_samples = audio.raw_samples if audio.raw_samples is not None else audio.samples
+        metrics["true_peak_dbtp"] = round(_true_peak_dbtp(headroom_samples, audio.sample_rate), 1)
 
         # RMS level in dB
         rms_linear = float(np.sqrt(np.mean(audio.samples**2)))
@@ -104,6 +156,10 @@ class LoudnessAnalyzer(AnalyzerBase):
             metrics["plr_db"] = round(
                 float(metrics["true_peak_dbtp"]) - float(metrics["integrated_lufs"]), 1
             )
+
+        metrics["dr_score"] = _dr_score(audio.samples, audio.sample_rate)
+
+        metrics["rms_curve_db"] = _rms_curve_db(audio.samples)
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
@@ -138,39 +194,3 @@ class LoudnessAnalyzer(AnalyzerBase):
         result.metrics["peak_difference"] = round(float(peak_diff), 1)
 
         return result
-
-    def _measure_true_peak(self, audio: AudioData) -> float | None:
-        """Measure true peak via ffmpeg loudnorm filter.
-
-        Returns the input true peak in dBTP, or None if ffmpeg is unavailable,
-        the file path is unresolvable, or parsing fails.
-        """
-        if shutil.which("ffmpeg") is None:
-            return None
-
-        try:
-            cmd = [
-                "ffmpeg",
-                "-i",
-                str(audio.filepath),
-                "-af",
-                "loudnorm=print_format=json",
-                "-f",
-                "null",
-                "-",
-            ]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            stderr = proc.stderr
-            # The loudnorm JSON block is written to stderr at the end of the run.
-            json_start = stderr.rfind("{")
-            json_end = stderr.rfind("}") + 1
-            if json_start >= 0 and json_end > json_start:
-                data = json.loads(stderr[json_start:json_end])
-                raw_tp = data.get("input_tp")
-                if raw_tp is None:
-                    return None
-                tp = float(raw_tp)
-                return round(tp, 1)
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError, OSError):
-            pass
-        return None

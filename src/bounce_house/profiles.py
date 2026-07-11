@@ -152,6 +152,14 @@ def _dc_offset_status(value: float) -> str:
     return "fail"
 
 
+def _dr_status(value: float) -> str:
+    if value >= 7:
+        return "pass"
+    if value >= 4:
+        return "warn"
+    return "fail"
+
+
 def _range_status(
     value: float, pass_range: tuple[float, float], warn_range: tuple[float, float]
 ) -> str:
@@ -263,6 +271,21 @@ _MASTER_RULES: dict[str, list[dict]] = {
                 "fail": (
                     "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
                     " is broken, fix at the source"
+                ),
+            },
+        },
+        {
+            "metric": "dr_score",
+            "evaluate": _dr_status,
+            "messages": {
+                "pass": "DR {value:.1f} — healthy loud-passage dynamics",
+                "warn": (
+                    "DR {value:.1f} — loud passages are dense;"
+                    " typical of loud modern masters, verify it's intentional"
+                ),
+                "fail": (
+                    "DR {value:.1f} — loud passages are crushed flat;"
+                    " ease off bus compression/limiting"
                 ),
             },
         },
@@ -698,6 +721,21 @@ _MIX_RULES: dict[str, list[dict]] = {
                 "fail": (
                     "Large DC offset ({value:.1f} dBFS) removed — a plugin or interface"
                     " is broken, fix at the source"
+                ),
+            },
+        },
+        {
+            "metric": "dr_score",
+            "evaluate": _dr_status,
+            "messages": {
+                "pass": "DR {value:.1f} — healthy loud-passage dynamics",
+                "warn": (
+                    "DR {value:.1f} — loud passages are dense;"
+                    " typical of loud modern masters, verify it's intentional"
+                ),
+                "fail": (
+                    "DR {value:.1f} — loud passages are crushed flat;"
+                    " ease off bus compression/limiting"
                 ),
             },
         },

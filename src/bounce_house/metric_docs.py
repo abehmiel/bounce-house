@@ -96,10 +96,10 @@ _TRUE_PEAK = MetricDoc(
         "mastering engineers use -1.5 dBTP for extra safety."
     ),
     technical=(
-        "Standard: ITU-R BS.1770-5. Measured using minimum 4x oversampling. "
-        "bounce-house uses ffmpeg's loudnorm filter for true peak measurement, "
-        "falling back to sample peak when ffmpeg is unavailable. "
-        "EBU R128 specifies max -1.0 dBTP. Apple Music requires -1.0 dBTP."
+        "Standard: ITU-R BS.1770-4 Annex 2 (approximated). Method: 4x polyphase "
+        "FIR oversampling (2x at >=96 kHz sample rates) via scipy.signal."
+        "resample_poly, then peak magnitude in dBTP. Measured natively — no "
+        "external tools required."
     ),
     aliases=["true_peak", "tp", "dbtp", "peak", "inter_sample"],
 )
@@ -230,6 +230,51 @@ _DC_OFFSET = MetricDoc(
         "energies are measured on the DC-free signal."
     ),
     aliases=["dc", "dc_offset", "offset"],
+)
+
+_DR_SCORE = MetricDoc(
+    key="dr_score",
+    name="DR (Dynamic Range)",
+    module="loudness",
+    summary="Loud-passage dynamic range in the TT/Pleasurize DR convention.",
+    explanation=(
+        "The DR value compares the loudest 20% of 3-second passages against "
+        "their peaks — the number mixing communities trade in ('this master "
+        "is DR6'). Unlike crest factor (instantaneous) or LRA (quiet-to-loud "
+        "spread), DR asks whether your LOUD sections still breathe."
+    ),
+    good_range="Above 7",
+    genre_notes=(
+        "Loud modern masters: DR5-7. Dynamic rock/indie: DR8-12. "
+        "Acoustic/jazz/classical: DR12+. Below DR5 almost always sounds "
+        "fatiguing on repeat listens."
+    ),
+    technical=(
+        "Method: per channel, 3 s blocks; block RMS = sqrt(2*mean(x^2)) per "
+        "the DR convention; DR = 20*log10(second-highest block peak / "
+        "quadratic mean of loudest 20% of block RMS values), averaged over "
+        "channels. Files under 3 s report no DR."
+    ),
+    aliases=["dr", "dr14", "dynamic_range"],
+)
+
+_RMS_CURVE = MetricDoc(
+    key="rms_curve_db",
+    name="Level Over Time",
+    module="loudness",
+    summary="RMS level curve across the track (up to 50 points).",
+    explanation=(
+        "A coarse loudness contour: spot sections that are much louder/quieter "
+        "than intended, missing dynamics between verse and chorus, or an export "
+        "that faded early."
+    ),
+    good_range="Informational",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: RMS in dB over up to 50 equal time segments, floor -100 dB. "
+        "Also intended for external plotting via --json."
+    ),
+    aliases=["level_curve", "loudness_curve"],
 )
 
 # --- Spectrum metrics ---
@@ -457,11 +502,13 @@ _STEREO_WIDTH = MetricDoc(
     key="stereo_width",
     name="Stereo Width",
     module="stereo",
-    summary="Side-to-total energy ratio — 0.0 is mono, 0.5 is equal M/S.",
+    summary="L/R decorrelation, balance-compensated — 0 is mono/panned, 0.5 independent.",
     explanation=(
-        "The ratio of side RMS to (mid RMS + side RMS). 0.0 means purely "
-        "mono. 0.5 means equal mid and side energy (extremely wide). "
-        "Typical mixes sit between 0.2 and 0.4."
+        "How decorrelated the left and right channels are, after compensating "
+        "for level imbalance: 0 means the two channels carry the same signal "
+        "(even if panned), 0.5 means fully independent content. Pure panning "
+        "does not count as width — check Channel Balance for that. Width is "
+        "undefined (not reported) when one channel is silent."
     ),
     good_range="0.2 to 0.4",
     genre_notes=(
@@ -472,6 +519,8 @@ _STEREO_WIDTH = MetricDoc(
     technical=(
         "Method: side_rms / (mid_rms + side_rms) where mid=(L+R)/2 and "
         "side=(L-R)/2. Ranges from 0.0 (mono) to 0.5 (equal mid/side)."
+        " Channels are normalized to equal RMS before the M/S split so panning "
+        "does not register as width."
     ),
     aliases=["width", "stereo_width", "image_width"],
 )
@@ -545,6 +594,25 @@ _FREQ_WIDTH = MetricDoc(
         "with nperseg=4096."
     ),
     aliases=["freq_width", "frequency_correlation", "band_width", "freq_stereo"],
+)
+
+_CORRELATION_CURVE = MetricDoc(
+    key="correlation_curve",
+    name="Correlation Over Time",
+    module="stereo",
+    summary="Stereo correlation curve across the track (up to 50 points).",
+    explanation=(
+        "Shows WHERE phase problems live: a dip to negative values in one "
+        "section points at a specific stereo effect or layered part, which a "
+        "single whole-track number hides."
+    ),
+    good_range="Informational",
+    genre_notes="Genre-independent.",
+    technical=(
+        "Method: 50 ms Pearson block correlations averaged into up to 50 "
+        "buckets; silent buckets are null."
+    ),
+    aliases=["corr_curve", "phase_curve"],
 )
 
 # --- Translation metrics ---
@@ -956,6 +1024,8 @@ METRICS: dict[str, MetricDoc] = {
         _CREST_FACTOR,
         _PLR,
         _DC_OFFSET,
+        _DR_SCORE,
+        _RMS_CURVE,
         _CENTROID,
         _BANDWIDTH,
         _ROLLOFF,
@@ -969,6 +1039,7 @@ METRICS: dict[str, MetricDoc] = {
         _BALANCE,
         _LOW_BLOCK_CORR,
         _FREQ_WIDTH,
+        _CORRELATION_CURVE,
         _MONO_LOSS,
         _BAND_MONO_LOSS,
         _LOW_END_RELIANCE,
@@ -1000,6 +1071,8 @@ MODULES: dict[str, list[str]] = {
         "crest_factor_db",
         "plr_db",
         "dc_offset_db",
+        "dr_score",
+        "rms_curve_db",
     ],
     "spectrum": [
         "centroid_hz",
@@ -1017,6 +1090,7 @@ MODULES: dict[str, list[str]] = {
         "balance_db",
         "low_block_correlation",
         "frequency_width",
+        "correlation_curve",
     ],
     "translation": ["mono_loss_db", "band_mono_loss", "low_end_reliance"],
     "perceptual": ["brightness", "warmth", "timbral_brightness", "timbral_warmth"],
