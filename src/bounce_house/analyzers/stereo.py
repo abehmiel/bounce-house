@@ -88,15 +88,16 @@ class StereoAnalyzer(AnalyzerBase):
             round(float(np.percentile(block_corrs, 5)), 4) if block_corrs else None
         )
 
-        # Correlation over time, bucketed to <=50 points for report/JSON
-        points = min(50, len(block_values)) if block_values else 0
+        # Correlation over time, bucketed to <=50 points for report/JSON.
+        # Integer edge boundaries partition every block into exactly `points`
+        # buckets (sizes differ by at most 1) so no trailing blocks are dropped.
+        n = len(block_values)
+        points = min(50, n) if block_values else 0
         curve: list[float | None] = []
         if points:
-            per_bucket = len(block_values) // points
+            edges = [i * n // points for i in range(points + 1)]
             for i in range(points):
-                bucket = [
-                    v for v in block_values[i * per_bucket : (i + 1) * per_bucket] if v is not None
-                ]
+                bucket = [v for v in block_values[edges[i] : edges[i + 1]] if v is not None]
                 curve.append(round(float(np.mean(bucket)), 3) if bucket else None)
         metrics["correlation_curve"] = curve
 
