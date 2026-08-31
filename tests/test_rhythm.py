@@ -125,3 +125,65 @@ class TestTempoSegments:
     def test_stability_is_a_known_value(self, tmp_tempo_120_wav):
         stability = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["tempo_stability"]
         assert stability in {"constant", "varying", "ambiguous", "unmeasurable"}
+
+
+class TestGroove:
+    def setup_method(self):
+        self.analyzer = RhythmAnalyzer()
+
+    def test_straight_material_reads_straight(self, tmp_tempo_120_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics
+        assert metrics["subdivision"] == "straight"
+        assert metrics["swing_ratio"] < 1.25
+
+    def test_swung_material_reads_shuffled(self, tmp_swung_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_swung_wav)).metrics
+        assert metrics["subdivision"] == "shuffled"
+        assert metrics["swing_ratio"] > 1.25
+
+    def test_swing_separates_straight_from_swung(self, tmp_tempo_120_wav, tmp_swung_wav):
+        straight = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["swing_ratio"]
+        swung = self.analyzer.analyze(load_audio(tmp_swung_wav)).metrics["swing_ratio"]
+        assert swung - straight > 0.15
+
+    def test_note_ms_has_all_divisions(self, tmp_tempo_120_wav):
+        note_ms = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["note_ms"]
+        assert set(note_ms) == {"1/1", "1/2", "1/4", "1/4d", "1/8", "1/8d", "1/8t", "1/16"}
+
+    def test_quarter_note_ms_matches_tempo(self, tmp_tempo_120_wav):
+        """At ~120 BPM a quarter note is ~500 ms — the number an engineer dials in."""
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics
+        assert abs(metrics["note_ms"]["1/4"] - 500.0) < 15.0
+
+    def test_note_ms_ratios_are_exact(self, tmp_tempo_120_wav):
+        note_ms = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["note_ms"]
+        assert abs(note_ms["1/8"] - note_ms["1/4"] / 2) < 0.2
+        assert abs(note_ms["1/8d"] - note_ms["1/8"] * 1.5) < 0.2
+
+    def test_short_file_has_no_note_table(self, tmp_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_wav)).metrics
+        assert metrics["note_ms"] == {}
+        assert metrics["swing_ratio"] is None
+        assert metrics["subdivision"] is None
+
+    def test_swing_suppressed_when_tempo_is_ambiguous(self, tmp_tempo_90_wav):
+        """An octave-wrong beat makes swing meaningless — report nothing, not 1.45."""
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_90_wav)).metrics
+        assert metrics["swing_ratio"] is None
+        assert metrics["subdivision"] is None
+
+    def test_triple_hint_survives_low_confidence(self, tmp_waltz_wav):
+        """The waltz fixture measures confidence 0.375 — below the swing gate.
+        The triple hint must NOT inherit that gate; its margin test is separate."""
+        metrics = self.analyzer.analyze(load_audio(tmp_waltz_wav)).metrics
+        assert metrics["tempo_confidence"] < 0.40
+        assert metrics["triple_meter_hint"] is True
+
+    def test_triple_hint_fires_on_waltz(self, tmp_waltz_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_waltz_wav)).metrics
+        assert metrics["triple_meter_hint"] is True
+
+    def test_triple_hint_silent_on_duple_material(self, tmp_tempo_120_wav):
+        """One-sided detector: silence is the honest output on weak evidence."""
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics
+        assert metrics["triple_meter_hint"] is False

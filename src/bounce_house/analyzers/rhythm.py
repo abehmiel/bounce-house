@@ -41,6 +41,15 @@ _SEGMENT_TOLERANCE = 0.03
 
 _HOP_LENGTH = 512
 
+# Beat-synchronous autocorrelation margin at which a triple grouping is
+# decisive. Measured: true-triple 0.506, true-duple 0.045, unaccented 0.264 —
+# so 0.40 fires on the first and stays silent on the other two. See the
+# design rationale: this detector is deliberately one-sided.
+_TRIPLE_MARGIN = 0.40
+# Offbeat placement at or above this ratio reads as a shuffle rather than
+# straight eighths. Measured: straight 1.112, triplet-swung 1.418.
+_SHUFFLE_ABOVE = 1.20
+
 _NOTE_DIVISORS: dict[str, float] = {
     "1/1": 4.0,
     "1/2": 2.0,
@@ -133,6 +142,46 @@ def _segments(
     return segs
 
 
+def _swing_ratio(oenv: np.ndarray, bpm: float, frames_per_sec: float) -> float | None:
+    """Offbeat placement as a ratio of the straight midpoint.
+
+    1.0 is dead-straight eighths, about 1.33 is triplet swing. Computed as the
+    onset-strength-weighted mean phase within the beat, restricted to the
+    offbeat region so the downbeat transient does not dominate the average.
+    """
+    times = np.arange(len(oenv)) / frames_per_sec
+    beat = 60.0 / bpm
+    phase = (times % beat) / beat
+    offbeat = (phase > 0.25) & (phase < 0.9)
+    weights = oenv[offbeat]
+    if weights.size == 0 or weights.sum() <= 0:
+        return None
+    return round(float(np.average(phase[offbeat], weights=weights)) / 0.5, 3)
+
+
+def _triple_hint(oenv: np.ndarray, sr: int, bpm: float, hop_length: int) -> bool:
+    """One-sided triple-grouping detector — True only on decisive evidence.
+
+    Compares beat-synchronous onset autocorrelation at lag 3 against lag 4. A
+    two-sided version is not shippable: on unaccented material lag 3 wins by a
+    moderate margin even when the music is in four. Gating hard at
+    _TRIPLE_MARGIN turns that false positive into silence. Reports grouping
+    only; notated meter is out of scope by design.
+    """
+    _, beats = librosa.beat.beat_track(
+        onset_envelope=oenv, sr=sr, hop_length=hop_length, bpm=bpm, units="frames"
+    )
+    if len(beats) < 12:
+        return False
+    beat_sync = librosa.util.sync(oenv[np.newaxis, :], beats, aggregate=np.max)[0]
+    beat_sync = beat_sync - beat_sync.mean()
+    ac = np.correlate(beat_sync, beat_sync, mode="full")[len(beat_sync) - 1 :]
+    if ac.size < 5 or ac[0] == 0:
+        return False
+    ac = ac / ac[0]
+    return bool(ac[3] > ac[4] and (ac[3] - ac[4]) >= _TRIPLE_MARGIN)
+
+
 def _empty_metrics() -> dict[str, Any]:
     """Metric set for audio we cannot honestly measure — every key still present."""
     return {
@@ -182,6 +231,25 @@ class RhythmAnalyzer(AnalyzerBase):
             metrics["tempo_stability"] = "constant"
         else:
             metrics["tempo_stability"] = "varying"
+
+        # Swing is measured as phase WITHIN the beat, so it is only meaningful
+        # when we believe the beat. On an octave-wrong estimate the "beat" is
+        # really an eighth note and the ratio is noise — measured: the 90 BPM
+        # fixture reads 1.454 ("shuffled") on straight material. Gate it.
+        # The triple hint is deliberately NOT gated: it carries its own,
+        # stricter margin test, and it fires correctly on the waltz fixture
+        # (confidence 0.375) which this gate would otherwise suppress.
+        if confidence >= _AMBIGUOUS_BELOW:
+            swing = _swing_ratio(oenv, bpm, frames_per_sec)
+            metrics["swing_ratio"] = swing
+            if swing is not None:
+                metrics["subdivision"] = "shuffled" if swing >= _SHUFFLE_ABOVE else "straight"
+        metrics["triple_meter_hint"] = _triple_hint(oenv, sr, bpm, _HOP_LENGTH)
+
+        beat_ms = 60000.0 / bpm
+        metrics["note_ms"] = {
+            name: round(beat_ms * divisor, 1) for name, divisor in _NOTE_DIVISORS.items()
+        }
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
