@@ -181,3 +181,137 @@ def tmp_mixlike_wav(tmp_path) -> Path:
     path = tmp_path / "mixlike.wav"
     sf.write(str(path), stereo, sr, subtype="PCM_16")
     return path
+
+
+def _rhythmic(dur: float, bpm: float, swing: float = 0.0, seed: int = 42) -> np.ndarray:
+    """Deterministic pseudo-music with a known tempo: kick on beats, hats on eighths.
+
+    swing=0.0 places offbeat hats at the exact midpoint; swing=0.33 approximates
+    triplet swing. Returns a stereo array peak-normalized to about -1 dBFS.
+    """
+    sr = 44100
+    rng = np.random.default_rng(seed)
+    n = int(sr * dur)
+    t = np.arange(n) / sr
+    beat = 60.0 / bpm
+
+    kick = np.zeros(n)
+    for start in np.arange(0, dur, beat):
+        idx = int(start * sr)
+        seg = np.arange(min(int(0.15 * sr), n - idx))
+        kick[idx : idx + len(seg)] += np.sin(2 * np.pi * 55 * seg / sr) * np.exp(-seg / (0.03 * sr))
+
+    bass = 0.3 * np.sin(2 * np.pi * 110 * t)
+
+    chord = np.zeros(n)
+    for f0 in (220.0, 277.18, 329.63):
+        for h in range(1, 6):
+            chord += np.sin(2 * np.pi * f0 * h * t + rng.uniform(0, 2 * np.pi)) / h
+    chord *= 0.08
+
+    lead = 0.15 * np.sin(2 * np.pi * 660 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 2 * t))
+
+    hats = np.zeros(n)
+    noise = rng.standard_normal(n)
+    offbeat = beat / 2 * (1 + swing)
+    for k in range(int(dur / beat) + 1):
+        for pos in (k * beat, k * beat + offbeat):
+            if pos >= dur:
+                continue
+            idx = int(pos * sr)
+            seg = np.arange(min(int(0.05 * sr), n - idx))
+            hats[idx : idx + len(seg)] += noise[idx : idx + len(seg)] * np.exp(-seg / (0.01 * sr))
+    hats = 0.3 * np.diff(hats, prepend=0.0)
+
+    left = 0.8 * kick + bass + chord + lead + hats
+    right = 0.8 * kick + bass + 0.9 * chord + lead + 1.1 * hats
+    stereo = np.column_stack([left, right])
+    return stereo * (0.89 / np.max(np.abs(stereo)))
+
+
+@pytest.fixture
+def tmp_tempo_120_wav(tmp_path) -> Path:
+    """16-second stereo pseudo-music at a known 120 BPM."""
+    path = tmp_path / "tempo120.wav"
+    sf.write(str(path), _rhythmic(16.0, 120.0), 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_tempo_change_wav(tmp_path) -> Path:
+    """32-second file: 16 s at 120 BPM followed by 16 s at 90 BPM."""
+    audio = np.vstack([_rhythmic(16.0, 120.0), _rhythmic(16.0, 90.0, seed=7)])
+    path = tmp_path / "tempo_change.wav"
+    sf.write(str(path), audio, 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_swung_wav(tmp_path) -> Path:
+    """16-second stereo pseudo-music at 120 BPM with triplet-swung offbeats."""
+    path = tmp_path / "swung.wav"
+    sf.write(str(path), _rhythmic(16.0, 120.0, swing=0.33), 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_long_silent_wav(tmp_path) -> Path:
+    """8-second stereo silence — long enough to reach the no-onset branch.
+
+    The existing tmp_silent_wav is 1 s, so it exits via the duration guard and
+    never exercises the empty-candidates path.
+    """
+    path = tmp_path / "long_silent.wav"
+    sf.write(str(path), np.zeros((44100 * 8, 2)), 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_mono_tempo_wav(tmp_path) -> Path:
+    """16-second MONO pseudo-music at 120 BPM — exercises the mono index path.
+
+    The existing tmp_mono_wav is 1 s and exits via the duration guard, so the
+    audio.samples[:, 0] branch is otherwise untested.
+    """
+    mono = _rhythmic(16.0, 120.0).mean(axis=1)
+    path = tmp_path / "mono_tempo.wav"
+    sf.write(str(path), mono, 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_tempo_90_wav(tmp_path) -> Path:
+    """16-second stereo pseudo-music at 90 BPM — the known octave-error case.
+
+    The eighth-note hat layer creates a competing 180 BPM pulse, so the top
+    candidate is the octave-doubled one. Used to test that the TRUE tempo still
+    appears among the candidates.
+    """
+    path = tmp_path / "tempo90.wav"
+    sf.write(str(path), _rhythmic(16.0, 90.0), 44100, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
+def tmp_waltz_wav(tmp_path) -> Path:
+    """24-second file with a loud downbeat every 3 beats at 120 BPM."""
+    sr = 44100
+    rng = np.random.default_rng(3)
+    dur, bpm, beats_per_bar = 24.0, 120.0, 3
+    n = int(sr * dur)
+    y = np.zeros(n)
+    beat = 60.0 / bpm
+    for k in range(int(dur / beat)):
+        idx = int(k * beat * sr)
+        seg = np.arange(min(int(0.2 * sr), n - idx))
+        downbeat = k % beats_per_bar == 0
+        amp = 1.0 if downbeat else 0.45
+        freq = 60 if downbeat else 200
+        y[idx : idx + len(seg)] += (
+            amp * np.sin(2 * np.pi * freq * seg / sr) * np.exp(-seg / (0.04 * sr))
+        )
+    y += 0.02 * rng.standard_normal(n)
+    y = y / np.max(np.abs(y)) * 0.9
+    path = tmp_path / "waltz.wav"
+    sf.write(str(path), np.column_stack([y, y]), sr, subtype="PCM_16")
+    return path
