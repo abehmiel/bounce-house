@@ -314,28 +314,3 @@ def tmp_tempo_90_wav(tmp_path) -> Path:
     path = tmp_path / "tempo90.wav"
     sf.write(str(path), _rhythmic(16.0, 90.0), 44100, subtype="PCM_16")
     return path
-
-
-@pytest.fixture
-def tmp_waltz_wav(tmp_path) -> Path:
-    """24-second file with a loud downbeat every 3 beats at 120 BPM."""
-    sr = 44100
-    rng = np.random.default_rng(3)
-    dur, bpm, beats_per_bar = 24.0, 120.0, 3
-    n = int(sr * dur)
-    y = np.zeros(n)
-    beat = 60.0 / bpm
-    for k in range(int(dur / beat)):
-        idx = int(k * beat * sr)
-        seg = np.arange(min(int(0.2 * sr), n - idx))
-        downbeat = k % beats_per_bar == 0
-        amp = 1.0 if downbeat else 0.45
-        freq = 60 if downbeat else 200
-        y[idx : idx + len(seg)] += (
-            amp * np.sin(2 * np.pi * freq * seg / sr) * np.exp(-seg / (0.04 * sr))
-        )
-    y += 0.02 * rng.standard_normal(n)
-    y = y / np.max(np.abs(y)) * 0.9
-    path = tmp_path / "waltz.wav"
-    sf.write(str(path), np.column_stack([y, y]), sr, subtype="PCM_16")
-    return path

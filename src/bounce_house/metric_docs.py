@@ -1140,37 +1140,6 @@ _SUBDIVISION = MetricDoc(
     aliases=["feel", "straight_or_swung"],
 )
 
-_TRIPLE_METER_HINT = MetricDoc(
-    key="triple_meter_hint",
-    name="Triple Meter Hint",
-    module="rhythm",
-    summary="True only when beats group into threes on decisive evidence.",
-    explanation=(
-        "A hint that the music groups in threes — a waltz feel. It is not a "
-        "claim about notated meter, which cannot be recovered from audio at "
-        "all: 4/4, 2/4, and 8/8 are scribal choices with no acoustic "
-        "difference, and 6/8 against 3/4 is ambiguous without a score. False "
-        "means either duple grouping or insufficient evidence; "
-        "the two are not distinguished, because a two-sided detector produces "
-        "false positives on material with no bar-level accent."
-    ),
-    good_range="No good or bad value — informational, and one-sided",
-    genre_notes=(
-        "Fires on waltzes and other clearly accented triple-meter material. "
-        "Stays silent on most produced music, including genuinely triple "
-        "material with a flat accent pattern."
-    ),
-    technical=(
-        "Beat-synchronous onset-strength autocorrelation, comparing lag 3 "
-        "against lag 4, gated at a margin of 0.40. Measured margins: "
-        "true-triple 0.51, true-duple 0.05, unaccented 0.26 — so the gate "
-        "fires on the first and stays silent on the other two. Requires at "
-        "least 12 tracked beats. Reports grouping only; notated meter is out "
-        "of scope by design."
-    ),
-    aliases=["triple_meter", "waltz", "meter", "grouping"],
-)
-
 _NOTE_MS = MetricDoc(
     key="note_ms",
     name="Note Lengths",
@@ -1320,7 +1289,6 @@ METRICS: dict[str, MetricDoc] = {
         _TEMPO_SEGMENTS,
         _SWING_RATIO,
         _SUBDIVISION,
-        _TRIPLE_METER_HINT,
         _NOTE_MS,
         _CLIP_EVENTS,
         _LONGEST_CLIP_RUN,
@@ -1379,7 +1347,6 @@ MODULES: dict[str, list[str]] = {
         "tempo_segments",
         "swing_ratio",
         "subdivision",
-        "triple_meter_hint",
         "note_ms",
     ],
     "qc": [

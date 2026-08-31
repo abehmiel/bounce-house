@@ -182,19 +182,3 @@ class TestGroove:
         metrics = self.analyzer.analyze(load_audio(tmp_tempo_90_wav)).metrics
         assert metrics["swing_ratio"] is None
         assert metrics["subdivision"] is None
-
-    def test_triple_hint_survives_low_confidence(self, tmp_waltz_wav):
-        """The waltz fixture measures confidence 0.375 — below the swing gate.
-        The triple hint must NOT inherit that gate; its margin test is separate."""
-        metrics = self.analyzer.analyze(load_audio(tmp_waltz_wav)).metrics
-        assert metrics["tempo_confidence"] < 0.40
-        assert metrics["triple_meter_hint"] is True
-
-    def test_triple_hint_fires_on_waltz(self, tmp_waltz_wav):
-        metrics = self.analyzer.analyze(load_audio(tmp_waltz_wav)).metrics
-        assert metrics["triple_meter_hint"] is True
-
-    def test_triple_hint_silent_on_duple_material(self, tmp_tempo_120_wav):
-        """One-sided detector: silence is the honest output on weak evidence."""
-        metrics = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics
-        assert metrics["triple_meter_hint"] is False

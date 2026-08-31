@@ -6,7 +6,7 @@
 
 A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House runs 51 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, perceptual quality, and rhythm — 8 modules in all. Most metrics get a pass/warn/fail assessment with plain-English advice; rhythm metrics are informational and are never scored. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
+Bounce House runs 50 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, perceptual quality, and rhythm — 8 modules in all. Most metrics get a pass/warn/fail assessment with plain-English advice; rhythm metrics are informational and are never scored. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
 
@@ -340,7 +340,7 @@ Real output from `bounce-house analyze mix.wav` (`NO_COLOR=1` to keep this block
 
 ## Metrics
 
-Bounce House measures 51 metrics across 8 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 50 metrics across 8 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
 
@@ -439,16 +439,13 @@ Timbral Brightness/Warmth require the optional `perceptual` extra (`uv sync --ex
 | Tempo Segments | Tempo measured in windows across the file, so tempo changes are visible | One segment for programmed material | — |
 | Swing Ratio | Where offbeats sit as a ratio of the straight midpoint (1.0 straight, ~1.33 triplet swing) | Informational — match your delays and samples to it | — |
 | Subdivision | Whether the groove reads as straight or swung | Informational | — |
-| Triple Meter Hint | One-sided flag for triple-feel grouping (e.g. waltz-like) | Informational, and one-sided | — |
 | Note Lengths | Reference table of note values in milliseconds at the detected tempo, for setting delay and compressor/gate times | Reference table | — |
 
 Bounce House reports rhythm as tempo, tempo stability, and groove — it does
-**not** report a notated time signature. The Triple Meter Hint is a
-one-sided detector: it fires only on decisive triple-feel evidence (for
-example a waltz), and its absence does not mean the material is in 4/4 or
-any other meter. Do not read any rhythm metric as a claim about notated
-meter; look at the note-length table for practical delay/release timing
-instead.
+**not** report a notated time signature and does not detect metrical
+grouping (duple vs. triple feel). Do not read any rhythm metric as a claim
+about notated meter; look at the note-length table for practical
+delay/release timing instead.
 
 ## Mix Diagnostics
 
@@ -507,7 +504,7 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 51 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 50 metric explanations, used by both the `explain` command and (potentially) report tooltips
 - **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares

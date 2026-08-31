@@ -83,7 +83,6 @@ _METRIC_NAMES = {
     "tempo_stability": "Tempo Stability",
     "swing_ratio": "Swing Ratio",
     "subdivision": "Subdivision",
-    "triple_meter_hint": "Triple Meter Hint",
     "clip_events": "Clip Events",
     "longest_clip_run": "Longest Clip Run",
     "leading_silence_sec": "Leading Silence",
@@ -206,8 +205,6 @@ def format_terminal(
             if key.startswith("reference_") or key.endswith("_difference"):
                 continue
             if value is None:
-                continue
-            if key == "triple_meter_hint" and not value:
                 continue
 
             display_name = _METRIC_NAMES.get(key, key.replace("_", " ").title())
