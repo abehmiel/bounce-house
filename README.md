@@ -6,7 +6,7 @@
 
 A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House runs 48 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, perceptual quality, and rhythm — 8 modules in all. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
+Bounce House runs 51 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, perceptual quality, and rhythm — 8 modules in all. Most metrics get a pass/warn/fail assessment with plain-English advice; rhythm metrics are informational and are never scored. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
 
@@ -340,7 +340,7 @@ Real output from `bounce-house analyze mix.wav` (`NO_COLOR=1` to keep this block
 
 ## Metrics
 
-Bounce House measures 48 metrics across 8 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 51 metrics across 8 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
 
@@ -507,7 +507,7 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 48 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 51 metric explanations, used by both the `explain` command and (potentially) report tooltips
 - **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares
