@@ -44,6 +44,30 @@ def tmp_silent_wav(tmp_path) -> Path:
 
 
 @pytest.fixture
+def tmp_sparse_constant_wav(tmp_path) -> Path:
+    """60-second sparse kick at an exactly constant 120 BPM, quiet and noisy.
+
+    Windowed tempo estimation jitters between neighbouring tempogram bins on
+    material this sparse, so this fixture exists to prove the analyzer does not
+    publish a timeline of tempo changes for audio whose tempo never changes.
+    """
+    sr = 44100
+    rng = np.random.default_rng(6)
+    dur = 60.0
+    n = int(sr * dur)
+    y = np.zeros(n)
+    for start in np.arange(0, dur, 0.5):
+        idx = int(start * sr)
+        seg = np.arange(min(int(0.15 * sr), n - idx))
+        y[idx : idx + len(seg)] += np.sin(2 * np.pi * 55 * seg / sr) * np.exp(-seg / (0.01 * sr))
+    y += 0.35 * rng.standard_normal(n)
+    y = y / np.max(np.abs(y)) * 0.89
+    path = tmp_path / "sparse_constant.wav"
+    sf.write(str(path), np.column_stack([y, y]), sr, subtype="PCM_16")
+    return path
+
+
+@pytest.fixture
 def tmp_wav_dir(tmp_path) -> Path:
     """Generate a directory with 3 stereo WAV files for batch testing."""
     sr = 44100

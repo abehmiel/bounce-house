@@ -142,6 +142,26 @@ def _segments(
     return segs
 
 
+def _is_jitter(segments: list[dict[str, float]]) -> bool:
+    """True when the segment sequence oscillates between tempi it already left.
+
+    A real tempo change moves to a new tempo and stays there. Windowed estimates
+    on sparse or quiet material instead flip between neighbouring tempogram bins,
+    producing a long timeline of tempo "changes" for audio whose tempo never
+    varies. A BPM value that recurs after being left is the signature of that
+    jitter, so the timeline is not trustworthy enough to publish.
+    """
+    seen: set[float] = set()
+    previous: float | None = None
+    for segment in segments:
+        bpm = segment["bpm"]
+        if bpm in seen and bpm != previous:
+            return True
+        seen.add(bpm)
+        previous = bpm
+    return False
+
+
 def _swing_ratio(oenv: np.ndarray, bpm: float, frames_per_sec: float) -> float | None:
     """Offbeat placement as a ratio of the straight midpoint.
 
@@ -223,6 +243,8 @@ class RhythmAnalyzer(AnalyzerBase):
         metrics["tempo_candidates"] = [{"bpm": f, "score": s} for f, s in candidates]
 
         segments = _segments(oenv, sr, _HOP_LENGTH, audio.duration, frames_per_sec)
+        if _is_jitter(segments):
+            segments = []
         metrics["tempo_segments"] = segments
         if confidence < _AMBIGUOUS_BELOW:
             metrics["tempo_stability"] = "ambiguous"

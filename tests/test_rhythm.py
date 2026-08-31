@@ -126,6 +126,17 @@ class TestTempoSegments:
         stability = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["tempo_stability"]
         assert stability in {"constant", "varying", "ambiguous", "unmeasurable"}
 
+    def test_constant_tempo_never_reports_a_jittering_timeline(self, tmp_sparse_constant_wav):
+        """Sparse material at a fixed tempo must not produce invented tempo changes."""
+        metrics = self.analyzer.analyze(load_audio(tmp_sparse_constant_wav)).metrics
+        assert metrics["tempo_segments"] == []
+
+    def test_genuine_tempo_change_survives_jitter_suppression(self, tmp_tempo_change_wav):
+        """The suppression must not swallow a real change, which also scores low
+        confidence — that is why this is gated on oscillation, not confidence."""
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_change_wav)).metrics
+        assert len(metrics["tempo_segments"]) >= 2
+
 
 class TestGroove:
     def setup_method(self):

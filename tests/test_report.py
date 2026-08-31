@@ -600,3 +600,33 @@ class TestRhythmRendering:
             [result], "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 1.0}
         )
         assert "Tempo  " not in out
+
+    def test_terminal_shows_tempo_over_time_for_genuine_change(self, tmp_tempo_change_wav):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        audio = load_audio(tmp_tempo_change_wav)
+        result = RhythmAnalyzer().analyze(audio)
+        out = format_terminal(
+            [result],
+            "change.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": audio.duration},
+        )
+        assert "Tempo over time:" in out
+
+    def test_terminal_omits_tempo_over_time_for_jittering_constant_tempo(
+        self, tmp_sparse_constant_wav
+    ):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        audio = load_audio(tmp_sparse_constant_wav)
+        result = RhythmAnalyzer().analyze(audio)
+        out = format_terminal(
+            [result],
+            "sparse.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": audio.duration},
+        )
+        assert "Tempo over time:" not in out
