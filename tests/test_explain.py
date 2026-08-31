@@ -107,7 +107,10 @@ class TestMetricDocStructure:
         """The tool must never claim a notated time signature — see the design rationale."""
         for key in MODULES["rhythm"]:
             doc = METRICS[key]
-            blob = f"{doc.summary} {doc.explanation} {doc.good_range}".lower()
+            blob = (
+                f"{doc.summary} {doc.explanation} {doc.good_range} "
+                f"{doc.genre_notes} {doc.technical}"
+            ).lower()
             assert "time signature" not in blob
 
     def test_modules_covers_all(self):

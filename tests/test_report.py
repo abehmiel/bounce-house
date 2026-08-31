@@ -630,3 +630,30 @@ class TestRhythmRendering:
             {"sample_rate": 44100, "channels": 2, "duration": audio.duration},
         )
         assert "Tempo over time:" not in out
+
+    def test_terminal_omits_triple_meter_hint_when_false(self, tmp_tempo_120_wav):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        result = RhythmAnalyzer().analyze(load_audio(tmp_tempo_120_wav))
+        out = format_terminal(
+            [result],
+            "tempo120.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 16.0},
+        )
+        assert "Triple Meter" not in out
+
+    def test_terminal_shows_triple_meter_hint_when_true(self, tmp_waltz_wav):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        audio = load_audio(tmp_waltz_wav)
+        result = RhythmAnalyzer().analyze(audio)
+        out = format_terminal(
+            [result],
+            "waltz.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": audio.duration},
+        )
+        assert "Triple Meter" in out

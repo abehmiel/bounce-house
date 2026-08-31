@@ -207,6 +207,8 @@ def format_terminal(
                 continue
             if value is None:
                 continue
+            if key == "triple_meter_hint" and not value:
+                continue
 
             display_name = _METRIC_NAMES.get(key, key.replace("_", " ").title())
 

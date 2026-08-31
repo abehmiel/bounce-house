@@ -433,11 +433,11 @@ Timbral Brightness/Warmth require the optional `perceptual` extra (`uv sync --ex
 | Metric | What it measures | Good range | Assessed |
 |--------|-----------------|------------|----------|
 | Tempo | Estimated tempo in BPM | Informational | — |
-| Tempo Confidence | How settled the tempo estimate is (0-1) | Above 0.40 is settled | — |
+| Tempo Confidence | How settled the tempo estimate is (0-1) | Above 0.40 means the top candidate is less contested, not that it is correct — check Tempo Candidates either way | — |
 | Tempo Stability | Whether tempo holds steady or varies across the file | 'constant' for programmed material | — |
 | Tempo Candidates | Other plausible tempos, usually octave-related (half/double time) | Informational | — |
 | Tempo Segments | Tempo measured in windows across the file, so tempo changes are visible | One segment for programmed material | — |
-| Swing Ratio | Long-short ratio of consecutive eighth notes | Informational — match your delays and samples to it | — |
+| Swing Ratio | Where offbeats sit as a ratio of the straight midpoint (1.0 straight, ~1.33 triplet swing) | Informational — match your delays and samples to it | — |
 | Subdivision | Whether the groove reads as straight or swung | Informational | — |
 | Triple Meter Hint | One-sided flag for triple-feel grouping (e.g. waltz-like) | Informational, and one-sided | — |
 | Note Lengths | Reference table of note values in milliseconds at the detected tempo, for setting delay and compressor/gate times | Reference table | — |

@@ -36,7 +36,8 @@ _MIN_DURATION_SEC = 5.0
 # localizes a change to within about one window.
 _WINDOW_SEC = 12.0
 _HOP_SEC = 4.0
-# Adjacent windows within this fraction of each other are the same tempo.
+# A window within this fraction of its run's anchor BPM (the BPM the run
+# started with) extends that run rather than starting a new segment.
 _SEGMENT_TOLERANCE = 0.03
 
 _HOP_LENGTH = 512

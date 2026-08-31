@@ -990,7 +990,11 @@ _TEMPO_CONFIDENCE = MetricDoc(
         "total score. A low value means the metrical level is contested, not "
         "that the music is bad. Read tempo_candidates when it is low."
     ),
-    good_range="Above 0.40 means the estimate is settled; below means ambiguous",
+    good_range=(
+        "Above 0.40 means the top candidate is less contested, not that it is "
+        "correct — an octave-wrong estimate can still score above 0.40. Read "
+        "tempo_candidates either way"
+    ),
     genre_notes=(
         "Rigid programmed material (house, techno) scores high. Rubato, live "
         "playing, ambient, and anything with a busy syncopated top layer "
@@ -1051,7 +1055,10 @@ _TEMPO_CANDIDATES = MetricDoc(
     technical=(
         "The three highest-scoring tempogram lags after prior weighting, "
         "separated by more than 0.05 octaves, with scores normalized to sum "
-        "to 1.0."
+        "to 1.0. That separation is about one tempogram bin wide, so two "
+        "candidates can still land at the same metrical level rather than "
+        "distinct ones — when that happens, the score is split between them "
+        "and tempo_confidence reads lower than the estimate's real certainty."
     ),
     aliases=["tempo_alternates", "bpm_candidates", "octave_alternates"],
 )
@@ -1074,11 +1081,13 @@ _TEMPO_SEGMENTS = MetricDoc(
     ),
     technical=(
         "Tempo is estimated in overlapping 12-second windows with a 4-second "
-        "hop, then adjacent windows agreeing within 3 percent are merged. What "
-        "this reports reliably is WHERE the tempo changed; the BPM inside each "
-        "segment carries the same octave ambiguity as the global estimate. "
-        "A 12-second window cannot localize a change more precisely than its "
-        "own length."
+        "hop, then each window is compared against the BPM that started its "
+        "run and merged in if it agrees within 3 percent — so a segment ends "
+        "on drift away from its own anchor, not from the previous window. "
+        "What this reports reliably is WHERE the tempo changed; the BPM "
+        "inside each segment carries the same octave ambiguity as the global "
+        "estimate. A 12-second window cannot localize a change more "
+        "precisely than its own length."
     ),
     aliases=["tempo_map", "tempo_track", "segments"],
 )
@@ -1181,7 +1190,10 @@ _NOTE_MS = MetricDoc(
     ),
     technical=(
         "60000 / tempo_bpm gives the quarter-note length in milliseconds; the "
-        "rest are exact multiples. Empty when tempo is unmeasurable."
+        "rest are exact multiples. Empty when tempo is unmeasurable. This "
+        "table inherits the tempo estimate, so if tempo_bpm is octave-wrong "
+        "every value here is wrong by the same factor of two — check "
+        "tempo_candidates if the numbers do not match what you hear."
     ),
     aliases=["delay_times", "note_lengths", "delay_ms", "ms"],
 )
