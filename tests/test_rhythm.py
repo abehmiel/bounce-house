@@ -81,3 +81,47 @@ class TestTempoEstimation:
         assert confident["tempo_confidence"] - ambiguous["tempo_confidence"] > 0.03, (
             "octave-ambiguous material must score lower than unambiguous"
         )
+
+
+class TestTempoSegments:
+    def setup_method(self):
+        self.analyzer = RhythmAnalyzer()
+
+    def test_steady_tempo_is_one_segment(self, tmp_tempo_120_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics
+        assert len(metrics["tempo_segments"]) == 1
+        assert metrics["tempo_stability"] == "constant"
+
+    def test_tempo_change_produces_multiple_segments(self, tmp_tempo_change_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_change_wav)).metrics
+        assert len(metrics["tempo_segments"]) >= 2
+
+    def test_tempo_change_segments_differ_in_bpm(self, tmp_tempo_change_wav):
+        segs = self.analyzer.analyze(load_audio(tmp_tempo_change_wav)).metrics["tempo_segments"]
+        assert abs(segs[0]["bpm"] - segs[1]["bpm"]) > 5.0
+
+    def test_segments_are_contiguous_and_non_overlapping(self, tmp_tempo_change_wav):
+        segs = self.analyzer.analyze(load_audio(tmp_tempo_change_wav)).metrics["tempo_segments"]
+        for a, b in zip(segs, segs[1:], strict=False):
+            assert a["end_s"] == b["start_s"]
+
+    def test_segments_span_the_file(self, tmp_tempo_change_wav):
+        audio = load_audio(tmp_tempo_change_wav)
+        segs = self.analyzer.analyze(audio).metrics["tempo_segments"]
+        assert segs[0]["start_s"] == 0.0
+        assert abs(segs[-1]["end_s"] - audio.duration) < 0.1
+
+    def test_short_file_has_no_segments(self, tmp_wav):
+        metrics = self.analyzer.analyze(load_audio(tmp_wav)).metrics
+        assert metrics["tempo_segments"] == []
+        assert metrics["tempo_stability"] == "unmeasurable"
+
+    def test_ambiguous_confidence_forces_ambiguous_stability(self, tmp_tempo_90_wav):
+        """Confidence below 0.40 overrides segmentation — see Task 1 for the
+        confidence half of this pair."""
+        metrics = self.analyzer.analyze(load_audio(tmp_tempo_90_wav)).metrics
+        assert metrics["tempo_stability"] == "ambiguous"
+
+    def test_stability_is_a_known_value(self, tmp_tempo_120_wav):
+        stability = self.analyzer.analyze(load_audio(tmp_tempo_120_wav)).metrics["tempo_stability"]
+        assert stability in {"constant", "varying", "ambiguous", "unmeasurable"}

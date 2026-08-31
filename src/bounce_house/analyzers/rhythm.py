@@ -31,6 +31,14 @@ _AMBIGUOUS_BELOW = 0.40
 # Shorter than this, there are too few beats to estimate anything honestly.
 _MIN_DURATION_SEC = 5.0
 
+# Overlapping-window tempo tracking, mirroring the pitch-drift windows in
+# TuningAnalyzer. 12 s holds enough beats for a stable tempogram; the 4 s hop
+# localizes a change to within about one window.
+_WINDOW_SEC = 12.0
+_HOP_SEC = 4.0
+# Adjacent windows within this fraction of each other are the same tempo.
+_SEGMENT_TOLERANCE = 0.03
+
 _HOP_LENGTH = 512
 
 _NOTE_DIVISORS: dict[str, float] = {
@@ -80,6 +88,51 @@ def _tempo_candidates(
     return [(round(f, 1), round(s / total, 3)) for f, s in picks]
 
 
+def _segments(
+    oenv: np.ndarray,
+    sr: int,
+    hop_length: int,
+    duration: float,
+    frames_per_sec: float,
+) -> list[dict[str, float]]:
+    """Windowed tempo, merged into runs of near-constant BPM.
+
+    Each window gets its own prior-weighted estimate, so a window inherits the
+    same octave ambiguity as the global estimate. What the segment list reports
+    reliably is *where the tempo changed*, not the absolute BPM of each run.
+    """
+    if duration < _WINDOW_SEC:
+        return []
+
+    win = int(_WINDOW_SEC * frames_per_sec)
+    hop = max(1, int(_HOP_SEC * frames_per_sec))
+    raw: list[tuple[float, float]] = []
+    for start in range(0, len(oenv) - win + 1, hop):
+        candidates = _tempo_candidates(oenv[start : start + win], sr, hop_length)
+        if candidates:
+            raw.append((start / frames_per_sec, candidates[0][0]))
+    if not raw:
+        return []
+
+    tolerance = np.log2(1 + _SEGMENT_TOLERANCE)
+    segs: list[dict[str, float]] = []
+    for t, bpm in raw:
+        if segs and abs(np.log2(bpm / segs[-1]["bpm"])) < tolerance:
+            segs[-1]["end_s"] = round(min(t + _WINDOW_SEC, duration), 2)
+            continue
+        if segs:
+            segs[-1]["end_s"] = round(t, 2)
+        segs.append(
+            {
+                "start_s": round(t, 2),
+                "end_s": round(min(t + _WINDOW_SEC, duration), 2),
+                "bpm": bpm,
+            }
+        )
+    segs[-1]["end_s"] = round(duration, 2)
+    return segs
+
+
 def _empty_metrics() -> dict[str, Any]:
     """Metric set for audio we cannot honestly measure — every key still present."""
     return {
@@ -107,6 +160,7 @@ class RhythmAnalyzer(AnalyzerBase):
         y = np.mean(audio.samples, axis=1) if audio.is_stereo else audio.samples[:, 0]
         sr = audio.sample_rate
         oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=_HOP_LENGTH)
+        frames_per_sec = sr / _HOP_LENGTH
 
         candidates = _tempo_candidates(oenv, sr, _HOP_LENGTH)
         if not candidates:
@@ -117,6 +171,17 @@ class RhythmAnalyzer(AnalyzerBase):
         metrics["tempo_bpm"] = bpm
         metrics["tempo_confidence"] = confidence
         metrics["tempo_candidates"] = [{"bpm": f, "score": s} for f, s in candidates]
+
+        segments = _segments(oenv, sr, _HOP_LENGTH, audio.duration, frames_per_sec)
+        metrics["tempo_segments"] = segments
+        if confidence < _AMBIGUOUS_BELOW:
+            metrics["tempo_stability"] = "ambiguous"
+        elif not segments:
+            metrics["tempo_stability"] = "unmeasurable"
+        elif len(segments) == 1:
+            metrics["tempo_stability"] = "constant"
+        else:
+            metrics["tempo_stability"] = "varying"
 
         return AnalysisResult(module=self.name, metrics=metrics)
 
