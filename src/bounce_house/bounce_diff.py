@@ -20,6 +20,7 @@ SIGNIFICANCE_EXACT: dict[str, float] = {
     "flatness": 0.02,
     "chroma_sharpness": 0.02,
     "clip_events": 1.0,
+    "tempo_bpm": 1.0,
 }
 SIGNIFICANCE_SUFFIX: list[tuple[str, float]] = [
     ("_cents", 2.0),
@@ -31,7 +32,13 @@ SIGNIFICANCE_SUFFIX: list[tuple[str, float]] = [
     ("_sec", 0.5),
 ]
 _DEFAULT_SIGNIFICANCE = 0.5
-_EXCLUDED_KEYS = {"rms_curve_db", "correlation_curve"}
+_EXCLUDED_KEYS = {
+    "rms_curve_db",
+    "correlation_curve",
+    "note_ms",
+    "tempo_segments",
+    "tempo_candidates",
+}
 
 
 def _significance(metric: str) -> float:

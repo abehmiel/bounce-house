@@ -65,6 +65,7 @@ MODULE_COMMANDS: tuple[str, ...] = (
     "translation",
     "perceptual",
     "tuning",
+    "rhythm",
     "qc",
 )
 
@@ -74,6 +75,7 @@ def _load_analyzers() -> list:
     from bounce_house.analyzers.loudness import LoudnessAnalyzer
     from bounce_house.analyzers.perceptual import PerceptualAnalyzer
     from bounce_house.analyzers.qc import QcAnalyzer
+    from bounce_house.analyzers.rhythm import RhythmAnalyzer
     from bounce_house.analyzers.spectrum import SpectrumAnalyzer
     from bounce_house.analyzers.stereo import StereoAnalyzer
     from bounce_house.analyzers.translation import TranslationAnalyzer
@@ -86,6 +88,7 @@ def _load_analyzers() -> list:
         TranslationAnalyzer(),
         PerceptualAnalyzer(),
         TuningAnalyzer(),
+        RhythmAnalyzer(),
         QcAnalyzer(),
     ]
 
@@ -134,6 +137,7 @@ def create_parser() -> argparse.ArgumentParser:
         "translation": "Mono and small-speaker translation check",
         "perceptual": "Perceptual quality analysis",
         "tuning": "Tuning and pitch stability analysis",
+        "rhythm": "Tempo, tempo stability, and groove",
         "qc": "Quality control — clipping and edge silence",
     }
     for name in MODULE_COMMANDS:

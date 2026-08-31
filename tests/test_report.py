@@ -451,7 +451,7 @@ class TestStrictJson:
         data = self._strict_loads(capsys.readouterr().out)
         # Silence → integrated LUFS is -inf internally → must serialize as null
         assert data["loudness"]["integrated_lufs"] is None
-        assert data["schema_version"] == 2
+        assert data["schema_version"] == 3
 
     def test_dir_json_is_strict_with_silent_file(self, tmp_path, capsys):
         import numpy as np
@@ -463,7 +463,7 @@ class TestStrictJson:
         sf.write(str(tmp_path / "silent.wav"), np.zeros((sr, 2)), sr, subtype="PCM_16")
         main(["dir", str(tmp_path), "--json"])
         data = self._strict_loads(capsys.readouterr().out)
-        assert data["schema_version"] == 2
+        assert data["schema_version"] == 3
         assert data["files"][0]["loudness"]["integrated_lufs"] is None
 
     def test_sanitize_replaces_non_finite(self):
@@ -557,3 +557,46 @@ class TestSparklines:
         )
         assert out
         assert "Level" in out
+
+
+class TestRhythmRendering:
+    def test_terminal_shows_tempo(self, tmp_tempo_120_wav):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        audio = load_audio(tmp_tempo_120_wav)
+        result = RhythmAnalyzer().analyze(audio)
+        out = format_terminal(
+            [result],
+            "tempo120.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 16.0},
+        )
+        assert "Rhythm & Groove" in out
+        assert "Tempo" in out
+        assert "120" in out
+
+    def test_terminal_renders_note_lengths(self, tmp_tempo_120_wav):
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        result = RhythmAnalyzer().analyze(load_audio(tmp_tempo_120_wav))
+        out = format_terminal(
+            [result],
+            "tempo120.wav",
+            {"sample_rate": 44100, "channels": 2, "duration": 16.0},
+        )
+        assert "1/8d" in out
+
+    def test_terminal_omits_unmeasurable_tempo(self, tmp_wav):
+        """A file too short to measure must not print a bogus BPM."""
+        from bounce_house.analyzers.rhythm import RhythmAnalyzer
+        from bounce_house.audio import load_audio
+        from bounce_house.report import format_terminal
+
+        result = RhythmAnalyzer().analyze(load_audio(tmp_wav))
+        out = format_terminal(
+            [result], "test.wav", {"sample_rate": 44100, "channels": 2, "duration": 1.0}
+        )
+        assert "Tempo  " not in out
