@@ -6,7 +6,7 @@
 
 A CLI audio analysis tool that tells you what's wrong with your mix — and what to do about it.
 
-Bounce House runs 39 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, and perceptual quality — 7 modules in all. Every metric gets a pass/warn/fail assessment with plain-English advice. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
+Bounce House runs 50 metrics across loudness, spectral balance, stereo imaging, mono/small-speaker translation, tuning, quality control, perceptual quality, and rhythm — 8 modules in all. Most metrics get a pass/warn/fail assessment with plain-English advice; rhythm metrics are informational and are never scored. Nine diagnostic patterns catch common mixing problems (muddy low end, crushed dynamics, mono-incompatible stereo) by combining evidence across modules. Compare against a reference track, batch-analyze an album, or pipe `--json` into your CI pipeline.
 
 I made this while working on a new DIY aggressive guitar-and-synth music project, listening to my first round of mixes on a car stereo and being utterly dismayed with bounces gone wrong. There was so much to fix. I wondered if I should create a tool to save some time and be more goal-directed in my mixing and mastering process (you obviously still have to listen to your mixes). I bit the bullet and made the bulk of bounce-house across just a few days while in Albany, NY visiting family. The more you know 🌈 
 
@@ -93,6 +93,7 @@ bounce-house translation mix.wav   # Mono loss, per-band cancellation, small-spe
 bounce-house perceptual mix.wav    # Brightness, warmth (+ timbral_models scores if installed)
 bounce-house tuning mix.wav        # Tuning deviation, pitch drift, chroma sharpness
 bounce-house qc mix.wav            # Clipping, leading/trailing silence
+bounce-house rhythm mix.wav        # Tempo, tempo stability, and groove
 ```
 
 ### Genre-calibrated targets
@@ -206,7 +207,7 @@ bounce-house loudness mix.wav --json
 bounce-house dir ./masters/ --json
 ```
 
-JSON output includes a top-level `"schema_version": 2` field; non-finite measurements
+JSON output includes a top-level `"schema_version": 3` field; non-finite measurements
 (e.g., LUFS of digital silence) are serialized as `null`.
 
 The terminal report renders level-over-time and correlation-over-time as compact
@@ -339,7 +340,7 @@ Real output from `bounce-house analyze mix.wav` (`NO_COLOR=1` to keep this block
 
 ## Metrics
 
-Bounce House measures 39 metrics across 7 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
+Bounce House measures 50 metrics across 8 analysis modules. Run `bounce-house explain` for full documentation including genre-specific context and measurement standards.
 
 Metrics marked ✓ get a pass/warn/fail assessment; unmarked metrics are reported for information and reference comparison.
 
@@ -427,6 +428,25 @@ Timbral Brightness/Warmth require the optional `perceptual` extra (`uv sync --ex
 | Leading Silence | Silence before the audio starts | 0 to 0.5 s | ✓ |
 | Trailing Silence | Silence after the audio ends | 0 to 5 s | ✓ |
 
+### Rhythm & Groove
+
+| Metric | What it measures | Good range | Assessed |
+|--------|-----------------|------------|----------|
+| Tempo | Estimated tempo in BPM | Informational | — |
+| Tempo Confidence | How settled the tempo estimate is (0-1) | Above 0.40 means the top candidate is less contested, not that it is correct — check Tempo Candidates either way | — |
+| Tempo Stability | Whether tempo holds steady or varies across the file | 'constant' for programmed material | — |
+| Tempo Candidates | Other plausible tempos, usually octave-related (half/double time) | Informational | — |
+| Tempo Segments | Tempo measured in windows across the file, so tempo changes are visible | One segment for programmed material | — |
+| Swing Ratio | Where offbeats sit as a ratio of the straight midpoint (1.0 straight, ~1.33 triplet swing) | Informational — match your delays and samples to it | — |
+| Subdivision | Whether the groove reads as straight or swung | Informational | — |
+| Note Lengths | Reference table of note values in milliseconds at the detected tempo, for setting delay and compressor/gate times | Reference table | — |
+
+Bounce House reports rhythm as tempo, tempo stability, and groove — it does
+**not** report a notated time signature and does not detect metrical
+grouping (duple vs. triple feel). Do not read any rhythm metric as a claim
+about notated meter; look at the note-length table for practical
+delay/release timing instead.
+
 ## Mix Diagnostics
 
 Beyond per-metric pass/warn/fail assessments, Bounce House includes a **multi-metric diagnostic engine** that detects 9 common mixing problems by combining evidence across modules. Diagnostics appear in a dedicated section at the bottom of the report when triggered.
@@ -465,7 +485,8 @@ analyzers/        Each analyzer extends BaseAnalyzer
   ├── translation Mono-sum loss, per-band mono cancellation, low-end reliance
   ├── perceptual  Brightness/warmth proxy (+ timbral_models scores if installed)
   ├── tuning      Pitch deviation, drift, chroma sharpness (librosa)
-  └── qc          Clipping detection, leading/trailing silence
+  ├── qc          Clipping detection, leading/trailing silence
+  └── rhythm      Tempo, tempo stability, swing, note lengths (librosa)
   │
   ▼
 rules.py          Data-driven pass/warn/fail rules per metric
@@ -483,7 +504,7 @@ cli.py            argparse dispatch, entry point: bounce-house / bh
 Key design decisions:
 - **Analyzers are stateless** — each takes `AudioData` and returns `AnalysisResult` with a metrics dict
 - **Rules are data, not code** — adding a new assessment rule means adding a dict entry, not writing a function
-- **Metric docs live in code** — `metric_docs.py` contains all 39 metric explanations, used by both the `explain` command and (potentially) report tooltips
+- **Metric docs live in code** — `metric_docs.py` contains all 50 metric explanations, used by both the `explain` command and (potentially) report tooltips
 - **Diagnostics combine metrics** — `diagnostics.py` defines pattern conditions as data, evaluated with soft-AND logic across modules
 
 ## How It Compares
@@ -544,7 +565,8 @@ src/bounce_house/
     ├── translation.py   Mono loss, per-band mono cancellation, low-end reliance
     ├── perceptual.py    Brightness, warmth
     ├── tuning.py        Tuning deviation, pitch drift, chroma sharpness
-    └── qc.py            Clipping detection, leading/trailing silence
+    ├── qc.py            Clipping detection, leading/trailing silence
+    └── rhythm.py        Tempo, tempo stability, swing, note lengths
 tests/
 ├── conftest.py          Synthetic audio fixtures
 ├── test_audio.py
@@ -557,6 +579,7 @@ tests/
 ├── test_profiles.py
 ├── test_qc.py
 ├── test_report.py
+├── test_rhythm.py
 ├── test_rules.py
 ├── test_spectrum.py
 ├── test_stereo.py

@@ -732,7 +732,7 @@ class TestDiffCommand:
         sf.write(str(quieter), audio.samples * 0.5, audio.sample_rate, subtype="PCM_16")
         main(["diff", str(tmp_wav), str(quieter), "--json"])
         data = json.loads(capsys.readouterr().out)
-        assert data["schema_version"] == 2
+        assert data["schema_version"] == 3
         assert data["old"].endswith(".wav") and data["new"].endswith(".wav")
         assert "improvements" in data and "regressions" in data
         assert "diagnostics_resolved" in data
@@ -777,3 +777,41 @@ class TestDiffCommand:
         main(["diff", str(tmp_wav), str(quieter)])
         out = capsys.readouterr().out
         assert "Genre targets:" not in out
+
+
+class TestRhythmCommand:
+    def test_rhythm_subcommand_runs(self, tmp_tempo_120_wav, capsys):
+        from bounce_house.cli import main
+
+        assert main(["rhythm", str(tmp_tempo_120_wav)]) == 0
+        assert "Rhythm" in capsys.readouterr().out
+
+    def test_rhythm_json_has_tempo(self, tmp_tempo_120_wav, capsys):
+        import json
+
+        from bounce_house.cli import main
+
+        main(["rhythm", str(tmp_tempo_120_wav), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert abs(data["rhythm"]["tempo_bpm"] - 120.0) < 3.0
+
+    def test_analyze_includes_rhythm(self, tmp_tempo_120_wav, capsys):
+        import json
+
+        from bounce_house.cli import main
+
+        main(["analyze", str(tmp_tempo_120_wav), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        assert "rhythm" in data
+        assert data["schema_version"] == 3
+
+    def test_rhythm_metrics_are_json_serializable(self, tmp_tempo_change_wav, capsys):
+        import json
+
+        from bounce_house.cli import main
+
+        main(["analyze", str(tmp_tempo_change_wav), "--json"])
+        data = json.loads(capsys.readouterr().out)
+        segs = data["rhythm"]["tempo_segments"]
+        assert isinstance(segs, list)
+        assert all(isinstance(s["bpm"], float) for s in segs)

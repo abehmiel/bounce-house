@@ -30,6 +30,7 @@ _MODULE_TITLES = {
     "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "rhythm": "Rhythm & Groove",
     "qc": "Quality Control",
 }
 
@@ -77,6 +78,11 @@ _METRIC_NAMES = {
     "pitch_drift_range_cents": "Pitch Drift (range)",
     "pitch_drift_trend_cents_per_min": "Pitch Trend",
     "chroma_sharpness": "Chroma Sharpness",
+    "tempo_bpm": "Tempo",
+    "tempo_confidence": "Tempo Confidence",
+    "tempo_stability": "Tempo Stability",
+    "swing_ratio": "Swing Ratio",
+    "subdivision": "Subdivision",
     "clip_events": "Clip Events",
     "longest_clip_run": "Longest Clip Run",
     "leading_silence_sec": "Leading Silence",
@@ -104,7 +110,7 @@ def _sparkline(values: list, lo: float, hi: float) -> str:
     return "".join(chars)
 
 
-_SCHEMA_VERSION = 2  # 2: band energies became relative to broadband density (Stage 2)
+_SCHEMA_VERSION = 3  # 3: rhythm module added (Stage 5)
 
 
 def _sanitize(obj: Any) -> Any:
@@ -190,6 +196,9 @@ def format_terminal(
                 "band_mono_loss",
                 "rms_curve_db",
                 "correlation_curve",
+                "note_ms",
+                "tempo_segments",
+                "tempo_candidates",
             ):
                 continue
             # Skip reference/diff keys in main display
@@ -254,6 +263,26 @@ def format_terminal(
             for band_name, loss in band_mono_loss.items():
                 label = band_name.replace("_", "-")
                 lines.append(f"    {label:<18} {loss:+.1f} dB")
+
+        segments = result.metrics.get("tempo_segments")
+        if segments and len(segments) > 1:
+            lines.append("")
+            lines.append(f"  {_DIM}Tempo over time:{_RESET}")
+            for seg in segments:
+                span = f"{_format_duration(seg['start_s'])}-{_format_duration(seg['end_s'])}"
+                lines.append(f"    {span:<18} {seg['bpm']:.1f} BPM")
+
+        candidates = result.metrics.get("tempo_candidates")
+        if candidates and len(candidates) > 1:
+            alts = "  ".join(f"{c['bpm']:.1f} ({c['score']:.2f})" for c in candidates[1:])
+            lines.append(f"  {'Also plausible':<22} {_DIM}{alts}{_RESET}")
+
+        note_ms = result.metrics.get("note_ms")
+        if note_ms:
+            lines.append("")
+            lines.append(f"  {_DIM}Note lengths (delay/release times):{_RESET}")
+            for name, ms in note_ms.items():
+                lines.append(f"    {name:<18} {ms:>8.1f} ms")
 
     # Suggestions section
     warns = [a for a in all_assessments if a.status == "warn"]
@@ -434,6 +463,8 @@ def _format_value(key: str, value: Any) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, float):
+        if key.endswith("_bpm"):
+            return f"{value:.1f} BPM"
         if "cents" in key:
             return f"{value:+.1f} cents"
         if "hz" in key.lower():

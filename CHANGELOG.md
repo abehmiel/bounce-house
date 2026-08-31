@@ -5,6 +5,19 @@ All notable changes to Bounce House will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `rhythm` module: tempo estimation with confidence and octave alternates,
+  windowed tempo segments so tempo changes are visible, swing ratio and
+  subdivision, and a note-length table in milliseconds for setting delay and
+  compressor times. Available as `bounce-house rhythm <file>` and included in
+  `analyze`. No new dependencies.
+
+### Changed
+- JSON `schema_version` is now `3` — the `rhythm` key was added to the analyze
+  output. All existing keys are unchanged.
+
 ## [0.2.0] - UNRELEASED
 
 ### Added
