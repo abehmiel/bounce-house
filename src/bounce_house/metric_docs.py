@@ -1003,8 +1003,10 @@ _TEMPO_CONFIDENCE = MetricDoc(
     technical=(
         "The top candidate's prior-weighted tempogram score divided by the sum "
         "of the top three candidates' scores. Candidates must be more than "
-        "0.05 octaves apart, so the three span distinct metrical levels rather "
-        "than one blurred peak."
+        "0.05 octaves apart. That is about one tempogram bin wide, so two "
+        "candidates can still land at the same metrical level rather than "
+        "distinct ones — when that happens, the score splits between them "
+        "and this value reads lower than the estimate's real certainty."
     ),
     aliases=["tempo_certainty", "bpm_confidence"],
 )

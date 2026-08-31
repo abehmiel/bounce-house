@@ -69,8 +69,9 @@ def _tempo_candidates(
     """Top-3 prior-weighted tempo candidates as (bpm, normalized_score).
 
     Scores each tempogram lag by autocorrelation strength times a log-normal
-    prior, then keeps the strongest peaks that are more than 0.05 octaves apart
-    so the list spans distinct metrical levels rather than one blurred peak.
+    prior, then keeps the strongest peaks that are more than 0.05 octaves apart.
+    That is about one tempogram bin wide, so two picks can still land at the
+    same metrical level rather than distinct ones.
     Returns [] when nothing scores above zero (silence, or no onsets).
     """
     tg = librosa.feature.tempogram(onset_envelope=oenv, sr=sr, hop_length=hop_length)
