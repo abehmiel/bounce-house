@@ -941,6 +941,251 @@ _PITCH_DRIFT_TREND = MetricDoc(
     aliases=["pitch_trend", "drift_trend"],
 )
 
+# --- Rhythm metrics ---
+
+_TEMPO_BPM = MetricDoc(
+    key="tempo_bpm",
+    name="Tempo",
+    module="rhythm",
+    summary="Estimated tempo in beats per minute.",
+    explanation=(
+        "The rate a listener would tap along at. Tempo itself is never a mix "
+        "defect — its value is what it unlocks. Knowing the tempo turns vague "
+        "settings into arithmetic: delay times that lock to the grid, "
+        "compressor release times short enough to recover before the next "
+        "transient, reverb pre-delay measured in note values rather than "
+        "guesses. See note_ms for the table."
+    ),
+    good_range="No good or bad value — informational",
+    genre_notes=(
+        "House 120-130, techno 125-150, hip-hop 80-100 (often heard at half "
+        "time), drum & bass 170-180, ballads 60-80. Genre expectations matter "
+        "mainly because they tell you which octave of an ambiguous estimate is "
+        "the musically sensible one."
+    ),
+    technical=(
+        "Estimated from a librosa tempogram (onset-strength autocorrelation). "
+        "Each lag is scored by autocorrelation strength times a log-normal "
+        "prior centred on 120 BPM with a one-octave sigma, restricted to "
+        "40-260 BPM. The highest-scoring lag is reported. Those prior "
+        "parameters are librosa's own defaults for tempo estimation "
+        "(start_bpm=120, std_bpm=1.0, the Ellis approach), not values tuned "
+        "here. The prior breaks octave ties toward the rate a listener would "
+        "tap without hard-coding a range that would mangle drum & bass or "
+        "downtempo."
+    ),
+    aliases=["bpm", "tempo", "beats_per_minute", "speed"],
+)
+
+_TEMPO_CONFIDENCE = MetricDoc(
+    key="tempo_confidence",
+    name="Tempo Confidence",
+    module="rhythm",
+    summary="How strongly the reported tempo beat its rivals, 0 to 1.",
+    explanation=(
+        "Tempo estimation's dominant failure is the octave error — reporting "
+        "174 BPM for an 87 BPM track. This is not a bug but genuine ambiguity: "
+        "a hi-hat layer on eighth notes really does create a pulse at twice "
+        "the beat rate. This value is the winning candidate's share of the "
+        "total score. A low value means the metrical level is contested, not "
+        "that the music is bad. Read tempo_candidates when it is low."
+    ),
+    good_range="Above 0.40 means the estimate is settled; below means ambiguous",
+    genre_notes=(
+        "Rigid programmed material (house, techno) scores high. Rubato, live "
+        "playing, ambient, and anything with a busy syncopated top layer "
+        "scores lower — correctly."
+    ),
+    technical=(
+        "The top candidate's prior-weighted tempogram score divided by the sum "
+        "of the top three candidates' scores. Candidates must be more than "
+        "0.05 octaves apart, so the three span distinct metrical levels rather "
+        "than one blurred peak."
+    ),
+    aliases=["tempo_certainty", "bpm_confidence"],
+)
+
+_TEMPO_STABILITY = MetricDoc(
+    key="tempo_stability",
+    name="Tempo Stability",
+    module="rhythm",
+    summary="Whether the tempo holds steady: constant, varying, ambiguous, or unmeasurable.",
+    explanation=(
+        "'constant' means one tempo throughout. 'varying' means the track "
+        "changes tempo — expected in live or through-composed material, but a "
+        "red flag in programmed music, where it usually means a tempo map got "
+        "edited or a bounce drifted. 'ambiguous' means the metrical level is "
+        "contested and the number should be read with tempo_candidates. "
+        "'unmeasurable' means the file is too short or has too few onsets."
+    ),
+    good_range="'constant' for programmed material; 'varying' is normal live",
+    genre_notes=(
+        "Any grid-programmed genre should read 'constant'. Orchestral, jazz, "
+        "and singer-songwriter material often reads 'varying' with no fault."
+    ),
+    technical=(
+        "Derived from the number of merged tempo segments and the confidence "
+        "value. Confidence below 0.40 forces 'ambiguous' regardless of "
+        "segmentation."
+    ),
+    aliases=["tempo_drift", "stability"],
+)
+
+_TEMPO_CANDIDATES = MetricDoc(
+    key="tempo_candidates",
+    name="Tempo Candidates",
+    module="rhythm",
+    summary="Top three competing tempo estimates with their normalized scores.",
+    explanation=(
+        "The alternates the estimator considered, usually related by a factor "
+        "of two or three — different metrical levels of the same pulse. When "
+        "the top pick looks wrong, the right answer is very often the second "
+        "entry. Exposing the list is deliberate: presenting a single number "
+        "for a genuinely ambiguous measurement would misrepresent it."
+    ),
+    good_range="No good or bad value — informational",
+    genre_notes=(
+        "Half-time hip-hop and drum & bass are the classic cases where the "
+        "second candidate is the one a musician would name."
+    ),
+    technical=(
+        "The three highest-scoring tempogram lags after prior weighting, "
+        "separated by more than 0.05 octaves, with scores normalized to sum "
+        "to 1.0."
+    ),
+    aliases=["tempo_alternates", "bpm_candidates", "octave_alternates"],
+)
+
+_TEMPO_SEGMENTS = MetricDoc(
+    key="tempo_segments",
+    name="Tempo Segments",
+    module="rhythm",
+    summary="Contiguous spans of near-constant tempo, with start and end times.",
+    explanation=(
+        "Shows where the tempo changed and roughly when. A track that reads as "
+        "one segment held one tempo throughout. Two or more segments means "
+        "something moved — deliberate in live and through-composed material, "
+        "usually an accident in programmed music."
+    ),
+    good_range="One segment for programmed material",
+    genre_notes=(
+        "Multiple segments are unremarkable in orchestral and jazz recordings "
+        "and worth investigating in anything sequenced to a grid."
+    ),
+    technical=(
+        "Tempo is estimated in overlapping 12-second windows with a 4-second "
+        "hop, then adjacent windows agreeing within 3 percent are merged. What "
+        "this reports reliably is WHERE the tempo changed; the BPM inside each "
+        "segment carries the same octave ambiguity as the global estimate. "
+        "A 12-second window cannot localize a change more precisely than its "
+        "own length."
+    ),
+    aliases=["tempo_map", "tempo_track", "segments"],
+)
+
+_SWING_RATIO = MetricDoc(
+    key="swing_ratio",
+    name="Swing Ratio",
+    module="rhythm",
+    summary="Where offbeats sit, as a ratio of the straight midpoint.",
+    explanation=(
+        "1.0 is dead-straight eighth notes; about 1.33 is triplet swing. This "
+        "is the most directly actionable rhythm metric: a swung performance "
+        "against a straight-quantized delay or a straight sample layer is an "
+        "audible fight, and hearing it is easier once you can see the number. "
+        "If the mix is swung, set delays by ear or to triplet values rather "
+        "than straight ones."
+    ),
+    good_range="No good or bad value — match your delays and samples to it",
+    genre_notes=(
+        "Blues, jazz, shuffle-based rock, and much UK garage sit near 1.3-1.5. "
+        "House, techno, and most pop sit near 1.0. Trap hi-hats often swing "
+        "slightly, around 1.05-1.15."
+    ),
+    technical=(
+        "Onset-strength-weighted mean phase within the beat, restricted to the "
+        "offbeat region (0.25 to 0.9 of the beat) so the downbeat transient "
+        "does not dominate, divided by 0.5. Verified separation on synthetic "
+        "material: straight 1.11, triplet-swung 1.42. Reported only when "
+        "tempo_confidence is at least 0.40 — swing is phase within the beat, "
+        "so an octave-wrong tempo would make it meaningless."
+    ),
+    aliases=["swing", "shuffle", "groove", "swing_amount"],
+)
+
+_SUBDIVISION = MetricDoc(
+    key="subdivision",
+    name="Subdivision",
+    module="rhythm",
+    summary="Whether offbeats read as straight or shuffled.",
+    explanation=(
+        "A plain-language reading of swing_ratio: 'straight' below 1.20, "
+        "'shuffled' at or above it. Use it as a quick check that any "
+        "programmed layer you add matches the feel of what is already there."
+    ),
+    good_range="No good or bad value — informational",
+    genre_notes="See swing_ratio for genre context.",
+    technical="Thresholded swing_ratio at 1.20.",
+    aliases=["feel", "straight_or_swung"],
+)
+
+_TRIPLE_METER_HINT = MetricDoc(
+    key="triple_meter_hint",
+    name="Triple Meter Hint",
+    module="rhythm",
+    summary="True only when beats group into threes on decisive evidence.",
+    explanation=(
+        "A hint that the music groups in threes — a waltz feel. It is not a "
+        "claim about notated meter, which cannot be recovered from audio at "
+        "all: 4/4, 2/4, and 8/8 are scribal choices with no acoustic "
+        "difference, and 6/8 against 3/4 is ambiguous without a score. False "
+        "means either duple grouping or insufficient evidence; "
+        "the two are not distinguished, because a two-sided detector produces "
+        "false positives on material with no bar-level accent."
+    ),
+    good_range="No good or bad value — informational, and one-sided",
+    genre_notes=(
+        "Fires on waltzes and other clearly accented triple-meter material. "
+        "Stays silent on most produced music, including genuinely triple "
+        "material with a flat accent pattern."
+    ),
+    technical=(
+        "Beat-synchronous onset-strength autocorrelation, comparing lag 3 "
+        "against lag 4, gated at a margin of 0.40. Measured margins: "
+        "true-triple 0.51, true-duple 0.05, unaccented 0.26 — so the gate "
+        "fires on the first and stays silent on the other two. Requires at "
+        "least 12 tracked beats. Reports grouping only; notated meter is out "
+        "of scope by design."
+    ),
+    aliases=["triple_meter", "waltz", "meter", "grouping"],
+)
+
+_NOTE_MS = MetricDoc(
+    key="note_ms",
+    name="Note Lengths",
+    module="rhythm",
+    summary="Millisecond length of each note value at the detected tempo.",
+    explanation=(
+        "The table that makes tempo useful at the desk. Set a delay to the "
+        "1/8d value for the classic dotted-eighth slap; set a compressor "
+        "release shorter than the 1/16 value so it recovers before the next "
+        "transient; set reverb pre-delay to 1/16 or 1/8t to keep the tail off "
+        "the attack. A 400 ms release at 160 BPM is eating the next hit, and "
+        "this table is how you see that at a glance."
+    ),
+    good_range="No good or bad value — a reference table",
+    genre_notes=(
+        "Dotted eighth is the signature delay of stadium rock and much modern "
+        "pop. Triplet-eighth delays suit shuffled material — cross-check "
+        "swing_ratio before choosing."
+    ),
+    technical=(
+        "60000 / tempo_bpm gives the quarter-note length in milliseconds; the "
+        "rest are exact multiples. Empty when tempo is unmeasurable."
+    ),
+    aliases=["delay_times", "note_lengths", "delay_ms", "ms"],
+)
+
 # --- QC metrics ---
 
 _CLIP_EVENTS = MetricDoc(
@@ -1054,6 +1299,15 @@ METRICS: dict[str, MetricDoc] = {
         _CLOSEST_STANDARD,
         _PITCH_DRIFT_STD,
         _PITCH_DRIFT_TREND,
+        _TEMPO_BPM,
+        _TEMPO_CONFIDENCE,
+        _TEMPO_STABILITY,
+        _TEMPO_CANDIDATES,
+        _TEMPO_SEGMENTS,
+        _SWING_RATIO,
+        _SUBDIVISION,
+        _TRIPLE_METER_HINT,
+        _NOTE_MS,
         _CLIP_EVENTS,
         _LONGEST_CLIP_RUN,
         _LEADING_SILENCE,
@@ -1103,6 +1357,17 @@ MODULES: dict[str, list[str]] = {
         "pitch_drift_trend_cents_per_min",
         "chroma_sharpness",
     ],
+    "rhythm": [
+        "tempo_bpm",
+        "tempo_confidence",
+        "tempo_stability",
+        "tempo_candidates",
+        "tempo_segments",
+        "swing_ratio",
+        "subdivision",
+        "triple_meter_hint",
+        "note_ms",
+    ],
     "qc": [
         "clip_events",
         "longest_clip_run",
@@ -1119,6 +1384,7 @@ MODULE_TITLES: dict[str, str] = {
     "translation": "Translation (Mono & Small Speakers)",
     "perceptual": "Perceptual Quality",
     "tuning": "Tuning & Pitch",
+    "rhythm": "Rhythm & Groove",
     "qc": "Quality Control",
 }
 

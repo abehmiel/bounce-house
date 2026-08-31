@@ -96,6 +96,20 @@ class TestMetricDocStructure:
         }
         assert set(qc_keys) == expected
 
+    def test_rhythm_module_metrics_documented(self):
+        rhythm_keys = MODULES["rhythm"]
+        assert "tempo_bpm" in rhythm_keys
+        assert "swing_ratio" in rhythm_keys
+        for key in rhythm_keys:
+            assert key in METRICS
+
+    def test_no_time_signature_claim_in_docs(self):
+        """The tool must never claim a notated time signature — see the design rationale."""
+        for key in MODULES["rhythm"]:
+            doc = METRICS[key]
+            blob = f"{doc.summary} {doc.explanation} {doc.good_range}".lower()
+            assert "time signature" not in blob
+
     def test_modules_covers_all(self):
         assert set(MODULES.keys()) == {
             "loudness",
@@ -104,6 +118,7 @@ class TestMetricDocStructure:
             "translation",
             "perceptual",
             "tuning",
+            "rhythm",
             "qc",
         }
 
