@@ -173,7 +173,8 @@ def _triple_hint(oenv: np.ndarray, sr: int, bpm: float, hop_length: int) -> bool
     )
     if len(beats) < 12:
         return False
-    beat_sync = librosa.util.sync(oenv[np.newaxis, :], beats, aggregate=np.max)[0]
+    beat_frames = beats.astype(int).tolist()
+    beat_sync = librosa.util.sync(oenv[np.newaxis, :], beat_frames, aggregate=np.max)[0]
     beat_sync = beat_sync - beat_sync.mean()
     ac = np.correlate(beat_sync, beat_sync, mode="full")[len(beat_sync) - 1 :]
     if ac.size < 5 or ac[0] == 0:
