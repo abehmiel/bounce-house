@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.4"
       - run: uv build
       - uses: softprops/action-gh-release@v2
         with:
